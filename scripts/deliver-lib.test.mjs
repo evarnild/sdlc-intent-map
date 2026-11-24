@@ -1,0 +1,309 @@
+import { describe, it } from 'node:test';
+import { each, expect } from './expect.mjs';
+import {
+  checkPreconditions,
+  commitMessage,
+  isBookkept,
+  konmariCommits,
+  konmariLine,
+  markLiveChecked,
+  markMerged,
+  mergeMessage,
+  planSteps,
+  routeReasonStated,
+} from './deliver-lib.mjs';
+
+const dir = 'intents/9-thing';
+const good = {
+  reviewHeader: { verdict: 'escalate', 'reviewed-commit': 'abc1234' },
+  isAncestor: true,
+  commits: [
+    { hash: 'aaaaaaa1', files: [`${dir}/review.md`] },
+    { hash: 'aaaaaaa2', files: [`${dir}/metadata.yml`] },
+  ],
+  intentDir: dir,
+  checkIntent: { verdict: 'PASS', reasonStated: false },
+};
+
+describe('checkPreconditions', () => {
+  it('passes a reviewed branch, attest or escalate', () => {
+    expect(checkPreconditions(good)).toEqual({ ok: true });
+    expect(checkPreconditions({ ...good, reviewHeader: { ...good.reviewHeader, verdict: 'attest' } }).ok).toBe(true);
+  });
+
+  it('fails a rework verdict, a missing verdict and a missing review.md', () => {
+    const rework = checkPreconditions({ ...good, reviewHeader: { ...good.reviewHeader, verdict: 'rework' } });
+    expect(rework).toMatchObject({ ok: false, failed: 'verdict' });
+    expect(checkPreconditions({ ...good, reviewHeader: { 'reviewed-commit': 'abc' } })).toMatchObject({ failed: 'verdict' });
+    expect(checkPreconditions({ ...good, reviewHeader: null })).toMatchObject({ failed: 'verdict' });
+  });
+
+  it('fails when reviewed-commit is not an ancestor, or is missing', () => {
+    expect(checkPreconditions({ ...good, isAncestor: false })).toMatchObject({ ok: false, failed: 'reviewed-commit' });
+    expect(checkPreconditions({ ...good, reviewHeader: { verdict: 'attest' } })).toMatchObject({ failed: 'reviewed-commit' });
+  });
+
+  it('allows only review.md and metadata.yml of the intent after the reviewed commit', () => {
+    expect(checkPreconditions({ ...good, commits: [] }).ok).toBe(true);
+    const third = checkPreconditions({ ...good, commits: [...good.commits, { hash: 'bbbbbbb1', files: ['src/x.ts'] }] });
+    expect(third).toMatchObject({ ok: false, failed: 'unreviewed-changes' });
+    expect(third.message).toContain('src/x.ts');
+    // another intent's metadata.yml is not this intent's
+    const other = checkPreconditions({ ...good, commits: [{ hash: 'bbbbbbb2', files: ['intents/8-other/metadata.yml'] }] });
+    expect(other.failed).toBe('unreviewed-changes');
+  });
+
+  describe('KonMari commits after the review (§61 F1)', () => {
+    const tidy = { hash: 'c0ffee01234567', files: ['src/engine/a.ts', 'src/engine/a.test.ts'] };
+    const revert = { hash: 'dec0de98765432', files: ['src/engine/a.ts'] };
+    const record = { hash: 'aaaaaaa3', files: [`${dir}/konmari.md`] };
+    const list = (...rows) => `# §9 KonMari record\n\noutcome: kept\nbase: abc1234\n\n## Tidied\n${rows.join('\n')}\n\n## Looked at and left\n- x\n`;
+    const withRevert = `${list('- c0ffee0 — src/engine/a.ts — merged helpers')}\n## Reverted\n- \`dec0de9\` — revert of c0ffee0\n`;
+    const run = (over) => checkPreconditions({ ...good, ...over });
+
+    it('kept: the listed tidy commit and konmari.md pass', () => {
+      const r = run({ commits: [...good.commits, tidy, record], konmariText: list('- c0ffee0 — src/engine/a.ts — merged helpers') });
+      expect(r).toEqual({ ok: true });
+    });
+
+    it('discarded: the tidy commits, their reverts and konmari.md pass', () => {
+      const r = run({ commits: [...good.commits, tidy, record, revert, record], konmariText: withRevert });
+      expect(r).toEqual({ ok: true });
+    });
+
+    it('nothing to tidy: konmari.md alone passes, with or without a record text', () => {
+      expect(run({ commits: [...good.commits, record], konmariText: 'outcome: nothing to tidy\n' })).toEqual({ ok: true });
+      expect(run({ commits: [record] }).ok).toBe(true);
+    });
+
+    it('an unlisted extra commit still fails, listed ones around it notwithstanding', () => {
+      const extra = { hash: 'badbad01', files: ['src/engine/b.ts'] };
+      const r = run({ commits: [tidy, extra, record], konmariText: list('- c0ffee0 — src/engine/a.ts — x') });
+      expect(r).toMatchObject({ ok: false, failed: 'unreviewed-changes' });
+      expect(r.message).toContain('badbad0');
+      expect(r.message).not.toContain('c0ffee0');
+    });
+
+    it('a tidy commit with no konmari.md at all fails', () => {
+      expect(run({ commits: [tidy] })).toMatchObject({ ok: false, failed: 'unreviewed-changes' });
+    });
+
+    it('a listed commit may not touch the intent folder besides konmari.md', () => {
+      const sneaky = { hash: 'c0ffee01234567', files: ['src/engine/a.ts', `${dir}/plan.md`] };
+      const r = run({ commits: [sneaky], konmariText: list('- c0ffee0 — src/engine/a.ts — x') });
+      expect(r).toMatchObject({ ok: false, failed: 'unreviewed-changes' });
+      expect(r.message).toContain(`${dir}/plan.md`);
+      const withRecord = { hash: 'c0ffee01234567', files: ['src/engine/a.ts', `${dir}/konmari.md`] };
+      expect(run({ commits: [withRecord], konmariText: list('- c0ffee0 — x') }).ok).toBe(true);
+    });
+
+    it('a merge commit is never accepted, even listed', () => {
+      const merge = { hash: 'c0ffee01234567', files: [], merge: true };
+      expect(run({ commits: [merge], konmariText: list('- c0ffee0 — x') }).ok).toBe(false);
+    });
+
+    it('lists hashes only from bullets under Tidied and Reverted', () => {
+      const prose = '# r\n\nSee c0ffee0 in prose.\n\n## Looked at and left\n- c0ffee0 — left alone\n';
+      expect(run({ commits: [tidy], konmariText: prose }).ok).toBe(false);
+      expect(konmariCommits(withRevert)).toEqual(['c0ffee0', 'dec0de9']);
+      expect(konmariCommits(null)).toEqual([]);
+      expect(konmariCommits('## Tidied\n- nothing\n- abc — short\n')).toEqual([]);
+    });
+  });
+
+  it('fails a check:intent FAIL', () => {
+    expect(checkPreconditions({ ...good, checkIntent: { verdict: 'FAIL', reasonStated: true } })).toMatchObject({ failed: 'check-intent' });
+  });
+
+  it('accepts ROUTE only with the reason stated in review.md', () => {
+    expect(checkPreconditions({ ...good, checkIntent: { verdict: 'ROUTE', reasonStated: false } })).toMatchObject({
+      ok: false,
+      failed: 'check-intent',
+    });
+    expect(checkPreconditions({ ...good, checkIntent: { verdict: 'ROUTE', reasonStated: true } }).ok).toBe(true);
+  });
+
+  it('checks precondition 1 alone when check:intent is left out', () => {
+    const rest = { ...good, checkIntent: undefined };
+    expect(checkPreconditions(rest).ok).toBe(true);
+    expect(checkPreconditions({ ...rest, isAncestor: false }).ok).toBe(false);
+  });
+});
+
+describe('routeReasonStated', () => {
+  const review = (body) => `verdict: attest\n\n${body}\n`;
+  it('ignores the route lines pasted into the Type check section, even with the word reason', () => {
+    expect(routeReasonStated(review('## Type check\nROUTE, reason stated\n  route: Declared fix, but no test changed.\n\n## Findings\n- none'))).toBe(false);
+  });
+  it('accepts the usual ways of stating the reason', () => {
+    expect(routeReasonStated(review('## Passes\n| 2 | Type check | ROUTE, reason above |'))).toBe(true);
+    expect(routeReasonStated(review('## Passes\n| 2 | Type check | ROUTE, reason stated below |'))).toBe(true);
+    expect(routeReasonStated(review('`check:intent` says ROUTE: "Declared fix, but no test changed." Reason:\nthe test is an end-to-end scenario.'))).toBe(true);
+  });
+  it('refuses a ROUTE with no stated reason', () => {
+    expect(routeReasonStated(review('## Findings\n- check:intent ROUTE: no reason found'))).toBe(false);
+    expect(routeReasonStated(review('## Findings\n- ROUTE, reason not stated'))).toBe(false);
+    expect(routeReasonStated(review('## Verified\n- npm run check:intent -> ROUTE (exit 2)'))).toBe(false);
+    expect(routeReasonStated(review('## Passes\n| 2 | Type check | ROUTE |'))).toBe(false);
+    expect(routeReasonStated(review('| 1 | Intent | pass (the form has no route back; reason: reload) |'))).toBe(false);
+    expect(routeReasonStated(review('## Findings\n- none'))).toBe(false);
+  });
+  // one phrase per way of saying "no reason"; each is caught by exactly one pattern in NO_REASON
+  for (const [line] of [
+    ['ROUTE: no reason found'],
+    ['ROUTE, reason unclear'],
+    ['ROUTE, reason: none'],
+    ['ROUTE; the reason was not given'],
+    ["ROUTE; the reason isn't stated"],
+    ['ROUTE: Reason to be decided by the owner'],
+  ]) it(`refuses "${line}"`, () => {
+    expect(routeReasonStated(review(`## Findings\n- ${line}`))).toBe(false);
+    // the same line, with a real reason in place of the negation, is accepted
+    expect(routeReasonStated(review('## Findings\n- ROUTE, reason stated: a config-only change'))).toBe(true);
+  });
+  it('reads the current round only', () => {
+    const text = '# Round 2\nverdict: attest\n\n## Type check\nPASS\n\n## Findings\n- none\n\n# Round 1 (history)\n- ROUTE, reason stated\n';
+    expect(routeReasonStated(text)).toBe(false);
+    // and a history block after the Type check section must not hide... or supply... a reason
+    expect(routeReasonStated('verdict: x\n\n## Type check\nROUTE\n\n# Round 1 (history)\n- ROUTE, reason stated\n')).toBe(false);
+    expect(routeReasonStated('verdict: x\n\n## Findings\n- ROUTE, reason stated\n\n# Round 1 (history)\n')).toBe(true);
+  });
+});
+
+const META = ['# generated-by: x', 'id: 9', 'status: in-review', 'live_checked:', 'merged:', 'links:', '  - a    # keep'];
+
+describe('markMerged / markLiveChecked', () => {
+  for (const [name, eol] of [['LF', '\n'], ['CRLF', '\r\n']]) {
+    it(`sets merged and status, keeping every other line and the ${name} endings`, () => {
+      const text = META.join(eol) + eol;
+      const out = markMerged(text, 'deadbee', '2026-10-22');
+      expect(out).toBe(
+        [
+          '# generated-by: x',
+          'id: 9',
+          'status: done',
+          'live_checked:',
+          "merged: deadbee    # 2026-10-22, merged by Claude on the owner's explicit request in chat",
+          'links:',
+          '  - a    # keep',
+        ].join(eol) + eol,
+      );
+      expect(out.split(eol).length).toBe(text.split(eol).length);
+      expect(out.replace(/\r\n/g, '').includes('\n')).toBe(false === (eol === '\r\n') ? true : out.replace(/\r\n/g, '').includes('\n'));
+    });
+
+    it(`records the live check with the owner's words (${name})`, () => {
+      const out = markLiveChecked(META.join(eol), '2026-10-22', 'live "checked"');
+      expect(out).toContain(`live_checked: 2026-10-22 by-agent    # owner: "live 'checked'"${eol}`);
+      expect(out.endsWith(`  - a    # keep`)).toBe(true); // no final newline added
+    });
+  }
+
+  it('does not create a line the file lacks', () => {
+    expect(() => markMerged('id: 9\n', 'a', '2026-10-22')).toThrow(/no merged, status/);
+  });
+
+  it('leaves mixed endings as they were', () => {
+    const out = markMerged('status: x\r\nmerged:\nnote: y\r\n', 'h', 'd');
+    expect(out.startsWith('status: done\r\nmerged: h')).toBe(true);
+    expect(out.includes('chat\nnote: y\r\n')).toBe(true);
+  });
+});
+
+describe('isBookkept', () => {
+  it('is true only for status done with a non-empty merge hash', () => {
+    expect(isBookkept({ status: 'done', merged: 'abc' })).toBe(true);
+    expect(isBookkept({ status: 'in-review', merged: '' })).toBe(false);
+    expect(isBookkept({ status: 'in-review', merged: 'abc' })).toBe(false);
+    expect(isBookkept({ status: 'done', merged: '' })).toBe(false);
+    expect(isBookkept({ status: 'done', merged: [] })).toBe(false); // an empty `merged:` line parses as []
+  });
+});
+
+describe('planSteps', () => {
+  const none = { liveCheckRequested: false, liveCheckRecorded: false, merged: false, bookkept: false, pushed: false, cleanedUp: false };
+  const statuses = (s) => Object.fromEntries(planSteps(s).map((p) => [p.id, p.status]));
+
+  it('plans everything for a fresh run, the live check only when requested', () => {
+    expect(statuses(none)).toEqual({
+      'live-check': 'n/a',
+      preconditions: 'todo',
+      merge: 'todo',
+      verify: 'todo',
+      bookkeeping: 'todo',
+      push: 'todo',
+      remove: 'todo',
+    });
+    expect(statuses({ ...none, liveCheckRequested: true })['live-check']).toBe('todo');
+    expect(statuses({ ...none, liveCheckRequested: true, liveCheckRecorded: true })['live-check']).toBe('done');
+  });
+
+  it('skips the first steps once the branch is merged, and re-runs verify until the bookkeeping is in', () => {
+    expect(statuses({ ...none, merged: true })).toMatchObject({
+      'live-check': 'done',
+      preconditions: 'done',
+      merge: 'done',
+      verify: 'todo',
+      bookkeeping: 'todo',
+    });
+  });
+
+  it('resumes after the bookkeeping, the push and the removal', () => {
+    const booked = statuses({ ...none, merged: true, bookkept: true });
+    expect(booked).toMatchObject({ verify: 'done', bookkeeping: 'done', push: 'todo', remove: 'todo' });
+    expect(statuses({ ...none, merged: true, bookkept: true, pushed: true })).toMatchObject({ push: 'done', remove: 'todo' });
+    const all = statuses({ ...none, merged: true, bookkept: true, pushed: true, cleanedUp: true });
+    expect(Object.values(all).every((v) => v === 'done')).toBe(true);
+  });
+
+  it('marks the push n/a when there is no remote, and only then', () => {
+    expect(statuses({ ...none, hasRemote: false }).push).toBe('n/a');
+    expect(statuses({ ...none, merged: true, bookkept: true, hasRemote: false }).push).toBe('n/a');
+    expect(statuses({ ...none, hasRemote: true }).push).toBe('todo');
+    expect(statuses(none).push).toBe('todo');
+  });
+});
+
+describe('merge message', () => {
+  it('puts the trailers after a blank line, adding none of its own', () => {
+    expect(mergeMessage(9, 'Thing', ['Co-Authored-By: A <a@b>', 'Claude-Session: https://x'])).toBe(
+      'Merge §9: Thing\n\nCo-Authored-By: A <a@b>\nClaude-Session: https://x\n',
+    );
+    expect(mergeMessage(9, 'Thing')).toBe('Merge §9: Thing\n');
+    expect(commitMessage('s', ['  ', ''])).toBe('s\n');
+  });
+});
+
+describe('konmariLine (§61 AC9)', () => {
+  const line = (over) => konmariLine({ type: 'feature', metadata: {}, konmariText: null, ...over });
+  const record = (outcome) => `# §9 KonMari record\n\noutcome: ${outcome}\nbase: abc1234\n`;
+
+  each(['kept', 'discarded', 'nothing to tidy'])('reports %s from the record', (outcome) => {
+    expect(line({ konmariText: record(outcome) })).toBe(`konmari: ${outcome}`);
+  });
+
+  it('reports skipped when metadata says skip, even with a record', () => {
+    expect(line({ metadata: { konmari: 'skip' } })).toBe('konmari: skipped');
+    expect(line({ metadata: { konmari: 'skip' }, konmariText: record('kept') })).toBe('konmari: skipped');
+  });
+
+  it('a reason line below the outcome does not confuse it', () => {
+    const text = `${record('discarded')}reason: verify failed, outcome: kept was wrong\n`;
+    expect(line({ konmariText: text })).toBe('konmari: discarded');
+    expect(line({ konmariText: 'outcome: discarded — verify failed\n' })).toBe('konmari: not run');
+    expect(line({ konmariText: 'reason: outcome: kept\n' })).toBe('konmari: not run');
+  });
+
+  it('reports not run with no record, or an outcome it does not know', () => {
+    expect(line({})).toBe('konmari: not run');
+    expect(line({ konmariText: record('maybe') })).toBe('konmari: not run');
+    expect(line({ konmariText: 'the word outcome: kept in prose, mid-line' })).toBe('konmari: not run');
+  });
+
+  it('works for fix and refactor, and gives an adjustment or experiment no line', () => {
+    expect(line({ type: 'fix' })).toBe('konmari: not run');
+    expect(line({ type: 'refactor', konmariText: record('kept') })).toBe('konmari: kept');
+    expect(line({ type: 'adjustment' })).toBeNull();
+    expect(line({ type: 'experiment', konmariText: record('kept') })).toBeNull();
+  });
+});
