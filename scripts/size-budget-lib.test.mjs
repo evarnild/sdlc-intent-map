@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import { each, expect } from './expect.mjs';
 import { ALLOWANCE, baselineFrom, budgetLines, budgetVerdict, checkBudget, countLines, isBudgeted, LIMIT, parseCatFileBatch } from './size-budget-lib.mjs';
 
-const F = 'src/scenes/Big.ts';
+const F = 'src/scenes/Big.mjs';
 const plan = (...lines) => `## Where this goes\n\n${lines.join('\n')}\n\n## Subtasks\n`;
 const rules = (errors) => errors.map((e) => e.rule);
 
@@ -21,31 +21,36 @@ describe('countLines', () => {
 });
 
 describe('isBudgeted', () => {
-  each(['src/engine/combat.ts', 'server/saveApi.ts', 'scripts/deliver.mjs', 'tools/orchestrator/orchestrator.mjs', 'src/x.js', 'src/pkg/agent.py', 'app/main.go'])(
+  each(['src/core/layout.mjs', 'src/server/repo.mjs', 'bin/intent-map.mjs', 'scripts/deliver.mjs', 'src/x.js'])(
     'budgets %s',
     (p) => expect(isBudgeted(p)).toBe(true),
   );
   each([
-    ['a test', 'src/engine/combat.test.ts'],
+    ['a test', 'src/engine/combat.test.mjs'],
     ['an mjs test', 'scripts/deliver.test.mjs'],
-    ['e2e', 'e2e/smoke.ts'],
-    ['a spec file', 'src/x.spec.ts'],
+    ['e2e', 'e2e/smoke.mjs'],
+    ['a spec file', 'src/x.spec.mjs'],
     ['a pytest file', 'src/pkg/test_agent.py'],
     ['a go test', 'app/main_test.go'],
     ['a tests folder', 'src/tests/helpers.py'],
-    ['generated code', 'src/generated/api.ts'],
-    ['docs', 'docs/x.ts'],
+    ['generated code', 'src/generated/api.mjs'],
+    ['docs', 'docs/x.mjs'],
     ['a non-code file', 'src/x.json'],
     ['the baseline itself', 'scripts/size-baseline.json'],
+    ['a stack the project dropped (ts)', 'src/engine/combat.ts'],
+    ['a stack the project dropped (go)', 'app/main.go'],
+    ['an old top-level folder', 'server/saveApi.mjs'],
+    ['an installed package', 'node_modules/marked/lib/marked.esm.js'],
+    ['an installed package under src', 'src/node_modules/x/index.js'],
   ])('does not budget %s', (_n, p) => expect(isBudgeted(p)).toBe(false));
-  it('accepts Windows separators', () => expect(isBudgeted('src\\engine\\combat.ts')).toBe(true));
+  it('accepts Windows separators', () => expect(isBudgeted('src\\engine\\combat.mjs')).toBe(true));
 });
 
 describe('baselineFrom', () => {
   it('keeps budgeted files over the limit, sorted', () => {
-    const m = { 'src/b.ts': 600, 'src/a.ts': 501, 'src/c.ts': 500, 'src/generated/map.ts': 1400, 'src/d.test.ts': 900 };
-    expect(baselineFrom(m)).toEqual({ 'src/a.ts': 501, 'src/b.ts': 600 });
-    expect(Object.keys(baselineFrom(m))).toEqual(['src/a.ts', 'src/b.ts']);
+    const m = { 'src/b.mjs': 600, 'src/a.mjs': 501, 'src/c.mjs': 500, 'src/generated/map.mjs': 1400, 'src/d.test.mjs': 900 };
+    expect(baselineFrom(m)).toEqual({ 'src/a.mjs': 501, 'src/b.mjs': 600 });
+    expect(Object.keys(baselineFrom(m))).toEqual(['src/a.mjs', 'src/b.mjs']);
   });
 });
 
@@ -56,17 +61,17 @@ describe('budgetLines', () => {
       `budget: ${F} +5: ignored, wrong section`,
       '## Where this goes',
       `- budget: ${F} +20: the new prompt`,
-      'budget: `src/x.ts` +3: with ticks',
+      'budget: `src/x.mjs` +3: with ticks',
       '## Tests',
       `budget: ${F} +9: ignored too`,
     ].join('\n');
     expect(budgetLines(text)).toEqual([
       { path: F, n: 20, reason: 'the new prompt' },
-      { path: 'src/x.ts', n: 3, reason: 'with ticks' },
+      { path: 'src/x.mjs', n: 3, reason: 'with ticks' },
     ]);
   });
   it('needs a reason, and copes with no plan', () => {
-    expect(budgetLines(plan(String.raw`budget: src\scenes\BoardScene.ts +5: why`))).toEqual([{ path: 'src/scenes/BoardScene.ts', n: 5, reason: 'why' }]);
+    expect(budgetLines(plan(String.raw`budget: src\scenes\BoardScene.mjs +5: why`))).toEqual([{ path: 'src/scenes/BoardScene.mjs', n: 5, reason: 'why' }]);
     expect(budgetLines(plan(`budget: ${F} +5:`))).toEqual([]);
     expect(budgetLines('')).toEqual([]);
     expect(budgetLines(undefined)).toEqual([]);
@@ -89,12 +94,12 @@ describe('checkBudget', () => {
   });
 
   it('rule 2: an unlisted file over 500 fails, at 500 passes', () => {
-    expect(rules(ok({ measured: { [F]: 600, 'src/New.ts': LIMIT + 1 } }))).toEqual([2]);
-    expect(ok({ measured: { [F]: 600, 'src/New.ts': LIMIT } })).toEqual([]);
+    expect(rules(ok({ measured: { [F]: 600, 'src/New.mjs': LIMIT + 1 } }))).toEqual([2]);
+    expect(ok({ measured: { [F]: 600, 'src/New.mjs': LIMIT } })).toEqual([]);
   });
 
   it('rule 2 ignores files that are not budgeted', () => {
-    expect(ok({ measured: { [F]: 600, 'src/New.test.ts': 900 } })).toEqual([]);
+    expect(ok({ measured: { [F]: 600, 'src/New.test.mjs': 900 } })).toEqual([]);
   });
 
   it('rule 3: raising a ceiling by 51 fails, even with a budget line', () => {
@@ -114,7 +119,7 @@ describe('checkBudget', () => {
   it('rule 4: a budget line that is too small, or for another file, fails', () => {
     const args = { measured: { [F]: 610 }, baseline: { [F]: 610 } };
     expect(rules(ok({ ...args, planText: plan(`budget: ${F} +9: short`) }))).toEqual([4]);
-    expect(rules(ok({ ...args, planText: plan('budget: src/other.ts +10: wrong file') }))).toEqual([4]);
+    expect(rules(ok({ ...args, planText: plan('budget: src/other.mjs +10: wrong file') }))).toEqual([4]);
     expect(ok({ ...args, planText: plan(`budget: ${F} +10: right`) })).toEqual([]);
   });
 
@@ -124,7 +129,7 @@ describe('checkBudget', () => {
   });
 
   it('adding a file to the baseline needs a plan line and at most 50 over 500', () => {
-    const G = 'src/engine/Newish.ts';
+    const G = 'src/engine/Newish.mjs';
     const withG = { measured: { [F]: 600, [G]: 520 }, baseline: { [F]: 600, [G]: 520 } };
     expect(rules(ok(withG))).toEqual([4]);
     expect(ok({ ...withG, planText: plan(`budget: ${G} +20: new module`) })).toEqual([]);
@@ -151,19 +156,19 @@ describe('checkBudget', () => {
   });
 
   it('first creation (no baseline at the merge base) needs no growth check or budget line', () => {
-    const baseline = { [F]: 600, 'src/Z.ts': 700 };
+    const baseline = { [F]: 600, 'src/Z.mjs': 700 };
     expect(checkBudget({ measured: { ...baseline }, baseline, baseBaseline: null, planText: '' })).toEqual([]);
   });
 
   it('first creation still applies rules 1, 2 and 5', () => {
     const run = (measured) => rules(checkBudget({ measured, baseline: { [F]: 600 }, baseBaseline: null, planText: '' }));
     expect(run({ [F]: 601 })).toEqual([1]);
-    expect(run({ [F]: 600, 'src/Z.ts': 501 })).toEqual([2]);
+    expect(run({ [F]: 600, 'src/Z.mjs': 501 })).toEqual([2]);
     expect(run({ [F]: 550 })).toEqual([5]);
   });
 
   it('a growth in one file does not hide another', () => {
-    const G = 'src/engine/Other.ts';
+    const G = 'src/engine/Other.mjs';
     const e = checkBudget({
       measured: { [F]: 610, [G]: 700 },
       baseline: { [F]: 610, [G]: 700 },

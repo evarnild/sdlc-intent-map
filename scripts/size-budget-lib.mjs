@@ -21,13 +21,13 @@ export function countLines(text) {
 
 const norm = (p) => p.replace(/\\/g, '/');
 
-// Which files the budget covers. Stack-neutral until §1 chooses the stack:
-// §1 narrows BUDGETED to the stack's source files and adds generated or
-// vendored files to BUDGET_EXCLUDE (as it narrows CORE_CODE in
-// intent-check-lib.mjs), and says so in docs/architecture.md.
+// Which files the budget covers: the product's hand-written JavaScript
+// modules (src/, bin/) and the kit's scripts. node_modules/ and vendored
+// files are excluded below (the two npm packages are served from node_modules,
+// never copied into the repo).
 
 /** Hand-written source files, by folder and extension. */
-export const BUDGETED = [/^(src|scripts|server|tools|lib|app)\/.+\.(ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|kt|cs|rb|php|swift)$/];
+export const BUDGETED = [/^(src|bin|scripts)\/.+\.(mjs|js)$/];
 
 /** Tests (any common naming), generated and vendored files. */
 export const BUDGET_EXCLUDE = [
