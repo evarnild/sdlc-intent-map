@@ -2,9 +2,49 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Intent map</title>
+<link rel="stylesheet" href="/web/style.css">
+<script type="module" src="/web/app.mjs"></script>
 </head>
 <body>
-<p>Intent map</p>
+<header id="hdr">
+  <h1>Intent map</h1>
+  <span id="hdr-repo"></span>
+  <span id="hdr-main"></span>
+  <span id="hdr-at"></span>
+  <label class="picker">Open <select id="picker" aria-label="Open an intent"><option value="">Choose an intent…</option></select></label>
+</header>
+
+<p id="error" role="alert" hidden></p>
+
+<section id="board-section" aria-label="Board">
+  <div id="board-scroll"><div id="board"></div></div>
+  <ul id="problems" hidden></ul>
+</section>
+
+<section id="reader" aria-label="Reader" hidden>
+  <h2 id="reader-title"></h2>
+  <p id="reader-meta"></p>
+  <ul id="reader-blockers"></ul>
+  <div id="tabs" role="tablist" aria-label="Documents"></div>
+  <article id="doc" role="tabpanel" tabindex="0"></article>
+</section>
+<p id="reader-missing" hidden></p>
+
+<section id="legend" aria-label="Legend">
+  <span class="key shipped">Shipped</span>
+  <span class="key build">Build · review</span>
+  <span class="key planned">Planned · waiting</span>
+  <span class="key draft">Draft</span>
+  <span class="key other">Other</span>
+  <span class="key blocker">Hard blocker: the target builds only after the source merges</span>
+</section>
+
+<section id="shipped-section" aria-label="Shipped">
+  <h2>Shipped</h2>
+  <ul id="shipped"></ul>
+</section>
 </body>
 </html>

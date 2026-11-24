@@ -1,0 +1,113 @@
+/* The artifact palette, system fonts, light and dark by the system setting (B22). Nothing here is fetched from another host. */
+:root {
+  color-scheme: light dark;
+  --bg: #f6f4ef;
+  --surface: #ffffff;
+  --text: #1f2430;
+  --muted: #667085;
+  --line: #d9d5ca;
+  --shipped: #2f7d4f;
+  --shipped-bg: #e3f1e8;
+  --build: #b7791f;
+  --build-bg: #fbf0d9;
+  --planned: #2b6cb0;
+  --planned-bg: #e1ecf8;
+  --draft: #7b8190;
+  --draft-bg: #eeeff2;
+  --other: #7c4daa;
+  --other-bg: #eee5f6;
+  --blocker: #c53030;
+  --focus: #1a56db;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161b;
+    --surface: #1d2027;
+    --text: #e6e8ee;
+    --muted: #9aa1b2;
+    --line: #333845;
+    --shipped: #5fbf86;
+    --shipped-bg: #1b2d23;
+    --build: #e0a94a;
+    --build-bg: #33290f;
+    --planned: #6aa5ea;
+    --planned-bg: #1a2a40;
+    --draft: #9aa1b2;
+    --draft-bg: #23262e;
+    --other: #b78be0;
+    --other-bg: #2c2240;
+    --blocker: #f06a6a;
+    --focus: #8ab4ff;
+  }
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; padding: 0 1.25rem 3rem; background: var(--bg); color: var(--text); font: 15px/1.5 var(--sans); }
+h1 { font-size: 1.25rem; margin: 0; letter-spacing: 0.02em; }
+h2 { font-size: 1rem; margin: 1.5rem 0 0.5rem; }
+a { color: var(--planned); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+#hdr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem 1.25rem; padding: 1rem 0; border-bottom: 1px solid var(--line); }
+#hdr span { color: var(--muted); font-size: 0.85rem; }
+#hdr-repo { font-weight: 600; color: var(--text) !important; }
+#hdr-main { font-family: var(--mono); }
+.picker { margin-left: auto; font-size: 0.85rem; color: var(--muted); }
+.picker select { font: inherit; padding: 0.25rem; max-width: 22rem; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 4px; }
+
+#error { background: var(--build-bg); border: 1px solid var(--blocker); color: var(--text); padding: 0.75rem 1rem; border-radius: 6px; white-space: pre-wrap; font-family: var(--mono); font-size: 0.85rem; }
+#error[hidden], #reader[hidden], #problems[hidden], #reader-missing[hidden] { display: none; }
+
+#board-scroll { overflow-x: auto; padding: 0.5rem 0; }
+#board { position: relative; }
+.col-title { position: absolute; margin: 0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.counter { position: absolute; padding: 5px 10px; border-radius: 8px; border: 1.5px solid var(--c); background: var(--cbg); cursor: pointer; overflow: hidden; }
+.counter .id { font-family: var(--mono); font-weight: 700; color: var(--c); }
+.counter .head { display: flex; gap: 0.4rem; align-items: baseline; }
+.counter .title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.counter .state { display: block; font-size: 0.68rem; letter-spacing: 0.04em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.counter.selected { box-shadow: 0 0 0 3px var(--c); }
+.tone-shipped, .key.shipped { --c: var(--shipped); --cbg: var(--shipped-bg); }
+.tone-build, .key.build { --c: var(--build); --cbg: var(--build-bg); }
+.tone-planned, .key.planned { --c: var(--planned); --cbg: var(--planned-bg); }
+.tone-draft, .key.draft { --c: var(--draft); --cbg: var(--draft-bg); }
+.tone-draft { border-style: dashed; }
+.tone-other, .key.other { --c: var(--other); --cbg: var(--other-bg); }
+
+#arrows { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+#arrows .arrow { fill: none; stroke: var(--blocker); stroke-width: 2; pointer-events: stroke; cursor: help; }
+#arrows .arrow:hover, #arrows .arrow:focus { stroke-width: 4; }
+#arrows .hit { fill: none; stroke: transparent; stroke-width: 12; pointer-events: stroke; }
+#arrows .arrowhead { fill: var(--blocker); }
+
+#problems { color: var(--blocker); font-size: 0.85rem; }
+
+#reader { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.25rem; margin-top: 1rem; }
+#reader h2 { margin-top: 0; font-size: 1.15rem; }
+#reader-meta { color: var(--muted); font-size: 0.85rem; margin: 0.25rem 0; }
+#reader-blockers { font-size: 0.85rem; padding-left: 1.2rem; margin: 0.25rem 0 0.75rem; }
+#reader-blockers .open { color: var(--blocker); font-weight: 600; }
+#tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--line); }
+#tabs button { font: inherit; padding: 0.4rem 0.9rem; background: none; color: var(--text); border: 1px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; }
+#tabs button[aria-selected="true"] { background: var(--bg); border-color: var(--line); font-weight: 600; }
+#tabs button:disabled { color: var(--muted); opacity: 0.5; cursor: not-allowed; }
+#doc { padding-top: 0.75rem; overflow-wrap: anywhere; }
+#doc pre { background: var(--bg); padding: 0.75rem; border-radius: 6px; overflow-x: auto; }
+#doc code { font-family: var(--mono); font-size: 0.88em; }
+#doc table { border-collapse: collapse; margin: 0.75rem 0; display: block; overflow-x: auto; }
+#doc th, #doc td { border: 1px solid var(--line); padding: 0.3rem 0.6rem; text-align: left; vertical-align: top; }
+#doc blockquote { margin-left: 0; padding-left: 1rem; border-left: 3px solid var(--line); color: var(--muted); }
+
+#legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-top: 1.5rem; font-size: 0.8rem; color: var(--muted); }
+.key { padding-left: 1.3rem; position: relative; }
+.key::before { content: ""; position: absolute; left: 0; top: 0.2em; width: 0.9rem; height: 0.9rem; border-radius: 3px; border: 1.5px solid var(--c, var(--blocker)); background: var(--cbg, transparent); }
+.key.draft::before { border-style: dashed; }
+.key.blocker::before { height: 0; top: 0.65em; border-width: 0 0 2px 0; border-radius: 0; background: none; border-color: var(--blocker); }
+
+#shipped { list-style: none; padding: 0; margin: 0; }
+#shipped li button { display: flex; gap: 0.75rem; width: 100%; text-align: left; font: inherit; padding: 0.3rem 0.5rem; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--text); cursor: pointer; }
+#shipped li button.selected { background: var(--shipped-bg); }
+#shipped .id { font-family: var(--mono); color: var(--shipped); font-weight: 700; min-width: 3.5rem; }
+#shipped .type { margin-left: auto; color: var(--muted); font-size: 0.8rem; }
