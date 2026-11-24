@@ -289,3 +289,63 @@ repos. Every test that starts a server uses port 0 and closes it.
 <!-- The implementer appends here, one entry per phase: date, commits, what
 shipped, test counts, anything that diverged from the plan. Nothing above
 this line is the implementer's to edit. -->
+
+### 2026-11-24: subtasks 1-5 (implementer, `/auto 1` run)
+
+Commits on `feat/1-local-intent-map`: `cfb98a0` (1: skeleton, lint,
+architecture test), `8c70ed3` (2: core), `6bf9d9b` (3: server, CLI, fixture),
+`e3bf414` (4: page), `f37695c` (5: bookkeeping), and the fix-up and Progress
+commit that follows them (the `deliver.test.mjs` paths, below).
+
+Shipped: everything in Goal, B1-B26. `npm run verify` is green: lint clean,
+kit tests 374 (371 plus three size-budget cases), product tests 82 (`architecture` 2, `hash` 8, `docref` 6,
+`layout` 24, `cli` 11, `api` 17, `render` 6, `static` 8).
+Dependencies exactly as "Assumptions I made", pinned, with
+`package-lock.json`. The two ESM paths in the plan held
+(`node_modules/marked/lib/marked.esm.js`,
+`node_modules/dompurify/dist/purify.es.mjs`); neither imports anything.
+`npm run size:baseline` stays `{}`.
+
+Manual look (evidence, not the live check). Server started by hand on port
+5201 against this worktree and against `C:/Users/eric/src/heraklios`
+(read-only: `git status` there is empty before and after), then stopped.
+Rendered in headless Edge: this repo shows §1 in Planned with the Spec tab
+open from `#i-1-spec`; Héraklios shows 5 shipped, 3 build, 4 planned and 2
+draft counters (51 shipped in the list below, 0 problems), with two red
+arrows, §83 to §82 and §73 to §84, which are the blockers `npm run queue`
+there prints. `/api/intent/81` (merged) read from `main`; `/api/intent/73`
+read from its branch `refactor/73-boardscene-on-session`. A foreign `Host`
+gave 403. Dark mode and offline were not looked at.
+
+**Finding for the owner: opening an intent is as slow as the queue.**
+`GET /api/intent/<id>` must answer 404 for an id "not in the current queue"
+(B8) and report the queue's fields for it, so it runs `queue.mjs --json` too.
+On Héraklios (51 shipped) `node scripts/queue.mjs --json` takes about 5 s on
+this machine, `/api/queue` 7 s, and `/api/intent/<id>` 6.7 s (a first
+request was 20-30 s while other work ran). The spec's performance line says a
+document opens within 0.5 s, so B8, B5 ("no cache") and that line cannot all
+hold on a repo this size. Implemented as written; not decided here. Options
+for the owner: let `/api/intent` reuse a queue result a few seconds old (a
+spec change to B5/B8), or have the page send what it already has. Small repos,
+like the fixtures and this one, are fast.
+
+Divergences from the plan:
+- `parseArgs` lives in `src/server/server.mjs` (the plan listed no module for
+  it), and `startServer` returns `{ server, port, url, root }`.
+- Subtask 3 added a placeholder `src/web/index.html` so AC1's "answers /" had a
+  page; subtask 4 replaced it.
+- Extras not in the plan: `pickerGroups` and `GEOMETRY` in `layout.mjs`
+  (B19, B14); a `Content-Security-Policy` (this origin only) and
+  `nosniff` on responses, tested in `static.test.mjs`; 405 for methods other
+  than GET and HEAD; queue failures answer 502 with the message.
+- `scripts/deliver.test.mjs` (the kit's test) wrote its core-code file at
+  `src/x18.txt` and `src/x19.txt`; with `CORE_CODE` narrowed to
+  `src/core/` they became `src/core/x18.txt` and `src/core/x19.txt`. Found by
+  `verify` after the subtask 5 commit and fixed in the commit after it.
+- `REVIEW-POLICY.md`: besides rule 1 and the "by meaning" clause, I rewrote
+  the sentence "Until §1 adds the product's test suite, only the kit itself
+  meets this" (now false) and named `eslint.config.mjs` in the lint-guardrails
+  clause. `CLAUDE.md`'s parallel-sessions paragraph on `setup:worktree` was
+  updated the same way.
+- The Edge-based look above used the machine's installed Edge in headless mode;
+  nothing from it is committed.
