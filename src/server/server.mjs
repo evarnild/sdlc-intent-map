@@ -40,12 +40,12 @@ const CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inl
 
 async function route(ctx, req, res) {
   const { pathname } = new URL(req.url, 'http://localhost');
-  if (pathname === '/api/queue') return sendJson(res, 200, await readQueue(ctx.root));
+  if (pathname === '/api/queue') return sendJson(res, 200, await readQueue(ctx.root, ctx));
   const m = /^\/api\/intent\/([^/]*)$/.exec(pathname);
   if (m) {
     // Digits only, before anything is looked up: no path or option can ride in an id.
     if (!/^\d+$/.test(m[1])) return sendJson(res, 404, { error: 'no such intent' });
-    const queue = await readQueue(ctx.root);
+    const queue = await readQueue(ctx.root, ctx);
     const record = findInQueue(queue, Number(m[1]));
     if (!record) return sendJson(res, 404, { error: `no intent §${Number(m[1])} in this repo` });
     return sendJson(res, 200, await readIntent(ctx.root, record));
@@ -56,8 +56,8 @@ async function route(ctx, req, res) {
 }
 
 /** Builds the (not yet listening) server for the repo at `root`. */
-export function createIntentMapServer(root) {
-  const ctx = { root };
+export function createIntentMapServer(root, { queueTimeoutMs } = {}) {
+  const ctx = { root, timeoutMs: queueTimeoutMs };
   const server = createServer((req, res) => {
     // DNS rebinding: a page on another site that resolves to 127.0.0.1 sends
     // its own name as Host. This runs before routing, so it guards everything.
@@ -81,9 +81,9 @@ export function createIntentMapServer(root) {
  * `{ server, port, url, root }`; rejects with an Error whose message is the
  * one-line reason (not a git repo, no main, no queue.mjs, port taken).
  */
-export async function startServer({ repo, port = DEFAULT_PORT }) {
+export async function startServer({ repo, port = DEFAULT_PORT, queueTimeoutMs }) {
   const { root } = await checkRepo(repo);
-  const server = createIntentMapServer(root);
+  const server = createIntentMapServer(root, { queueTimeoutMs });
   await new Promise((resolveListen, reject) => {
     server.once('error', (e) => reject(e.code === 'EADDRINUSE' ? new Error(`port ${port} is already in use`) : e));
     server.listen(port, HOST, resolveListen);

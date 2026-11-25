@@ -2,6 +2,9 @@
 // touches it. The server never writes there: git is run with an argument array
 // (never a shell string), only the subcommands in READ_ONLY_GIT (B9), and
 // documents come from `git show`, never from the working tree.
+// One recorded exception (docs/architecture.md, principle 2): the branch lookup
+// is readIntentMetadataFromBranch in scripts/session-io.mjs, which runs git
+// outside READ_ONLY_GIT. By reading it runs only for-each-ref, ls-tree and show.
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
@@ -12,7 +15,7 @@ import { DOCS } from '../core/hash.mjs';
 import { readIntentMetadataFromBranch } from '../../scripts/session-io.mjs';
 
 const MAIN = 'main';
-const QUEUE_TIMEOUT_MS = 30_000;
+export const QUEUE_TIMEOUT_MS = 30_000;
 const MAX_BUFFER = 32 * 1024 * 1024;
 const QUEUE_GROUPS = ['inFlight', 'queued', 'shipped', 'stopped', 'other'];
 
@@ -36,7 +39,7 @@ const run = (file, args, options) =>
   });
 
 /** Runs one read-only git subcommand in `root`; stdout with CRLF normalised to LF. */
-async function gitRead(root, ...args) {
+export async function gitRead(root, ...args) {
   if (!READ_ONLY_GIT.includes(args[0])) throw new Error(`git ${args[0]} is not allowed on the target repo`);
   const out = await run('git', args, { cwd: root, env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' } });
   return out.replace(/\r\n/g, '\n');
@@ -71,14 +74,14 @@ export async function checkRepo(path) {
  * code from the target repo, accepted because it is the owner's own repo.
  * I2: queue.mjs only reads git; B9 limits what this server itself runs.
  * Runs fresh on every call (no cache), with the node running this server
- * (not whatever `node` is on PATH), a 30 s timeout and a capped buffer.
+ * (not whatever `node` is on PATH), a timeout (30 s by default) and a capped buffer.
  */
-export async function readQueue(root) {
+export async function readQueue(root, { timeoutMs = QUEUE_TIMEOUT_MS } = {}) {
   let text;
   try {
-    text = await run(process.execPath, ['scripts/queue.mjs', '--json'], { cwd: root, timeout: QUEUE_TIMEOUT_MS, env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' } });
+    text = await run(process.execPath, ['scripts/queue.mjs', '--json'], { cwd: root, timeout: timeoutMs, env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' } });
   } catch (e) {
-    const why = e.killed ? `timed out after ${QUEUE_TIMEOUT_MS / 1000} s` : (e.stderr || e.message || '').trim().split('\n')[0] || `exit ${e.code}`;
+    const why = e.killed ? `timed out after ${timeoutMs / 1000} s` : (e.stderr || e.message || '').trim().split('\n')[0] || `exit ${e.code}`;
     throw new RepoError(`scripts/queue.mjs failed: ${why}`, 502);
   }
   let data;

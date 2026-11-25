@@ -3,8 +3,10 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { request } from 'node:http';
-import { basename } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import { createFixture, intentFiles } from '../test/fixture-repo.mjs';
+import { gitRead, QUEUE_TIMEOUT_MS, READ_ONLY_GIT } from './repo.mjs';
 import { startServer } from './server.mjs';
 
 const cleanups = [];
@@ -12,8 +14,8 @@ after(async () => {
   for (const f of cleanups.reverse()) await f();
 });
 
-async function serve(fx) {
-  const s = await startServer({ repo: fx.dir, port: 0 });
+async function serve(fx, options = {}) {
+  const s = await startServer({ repo: fx.dir, port: 0, ...options });
   cleanups.push(() => new Promise((r) => s.server.close(r)));
   return { base: `http://127.0.0.1:${s.port}`, port: s.port };
 }
@@ -157,6 +159,11 @@ describe('read-only API on a fixture repo', () => {
       assert.equal(await getWithHost(api.port, 'evil.example', '/api/intent/1'), 403);
       assert.equal(await getWithHost(api.port, `127.0.0.1.evil.example:${api.port}`), 403);
     });
+    it('matches the Host exactly: another name that starts with localhost, or another port, is refused', async () => {
+      assert.equal(await getWithHost(api.port, `localhost.evil.example:${api.port}`), 403);
+      assert.equal(await getWithHost(api.port, `localhost:${api.port + 1}`), 403);
+      assert.equal(await getWithHost(api.port, `127.0.0.1:${api.port + 1}`), 403);
+    });
     it('accepts localhost and 127.0.0.1 on the bound port', async () => {
       assert.equal(await getWithHost(api.port, `localhost:${api.port}`), 200);
       assert.equal(await getWithHost(api.port, `127.0.0.1:${api.port}`), 200);
@@ -199,4 +206,58 @@ describe('a failing queue (AC4, B6)', () => {
       if (name === 'prints something that is not JSON') assert.match(body.error, /not json at all/);
     });
   }
+});
+
+describe('the id guard runs before the queue (MEDIUM-1)', () => {
+  it('answers 404, not 502, for a non-numeric id even when queue.mjs fails', async () => {
+    const fx = createFixture();
+    cleanups.push(() => fx.cleanup());
+    fx.commit({ 'scripts/queue.mjs': 'process.exit(1);\n' }, 'break the queue');
+    const api = await serve(fx);
+    assert.equal((await getJson(api.base, '/api/intent/1')).status, 502); // a number does reach the queue
+    for (const id of ['abc', '..%2F..', '1.5', '-1']) assert.equal((await getJson(api.base, `/api/intent/${id}`)).status, 404, id);
+  });
+});
+
+describe('queue timeout (AC4, B6)', () => {
+  it('defaults to 30 s', () => assert.equal(QUEUE_TIMEOUT_MS, 30_000));
+  it('answers 502 "timed out" when queue.mjs never exits, and leaves no process behind', { timeout: 20_000 }, async () => {
+    const fx = createFixture();
+    cleanups.push(() => fx.cleanup());
+    fx.commit({ 'scripts/queue.mjs': "import { writeFileSync } from 'node:fs';\nwriteFileSync('queue.pid', String(process.pid));\nsetInterval(() => {}, 1000);\n" }, 'hang');
+    const api = await serve(fx, { queueTimeoutMs: 500 });
+    const t0 = Date.now();
+    const { status, body } = await getJson(api.base, '/api/queue');
+    assert.equal(status, 502);
+    assert.match(body.error, /timed out/);
+    assert.ok(Date.now() - t0 < 10_000, 'the timeout parameter is used');
+    const pidFile = join(fx.dir, 'queue.pid');
+    assert.ok(existsSync(pidFile), 'the fixture queue.mjs ran');
+    const pid = Number(readFileSync(pidFile, 'utf8'));
+    let alive = true;
+    for (let i = 0; i < 50 && alive; i++) {
+      try {
+        process.kill(pid, 0);
+        await new Promise((r) => setTimeout(r, 100));
+      } catch {
+        alive = false;
+      }
+    }
+    assert.equal(alive, false, 'the hung queue.mjs was killed');
+  });
+});
+
+describe('the git allow-list (AC6, B9)', () => {
+  it('lists only read-only subcommands', () => assert.deepEqual(READ_ONLY_GIT, ['rev-parse', 'for-each-ref', 'ls-tree', 'show']));
+  it('rejects any other subcommand without running it', async () => {
+    const fx = createFixture();
+    cleanups.push(() => fx.cleanup());
+    for (const args of [['checkout', '-b', 'sneaky'], ['commit', '--allow-empty', '-m', 'x'], ['config', 'user.name', 'x']]) {
+      await assert.rejects(gitRead(fx.dir, ...args), /not allowed/, args[0]);
+    }
+    assert.equal(fx.git('branch', '--list', 'sneaky'), '');
+    assert.equal(fx.git('rev-list', '--count', 'HEAD'), '1');
+    assert.equal(fx.git('config', 'user.name'), 'Fixture');
+    assert.match(await gitRead(fx.dir, 'rev-parse', '--abbrev-ref', 'HEAD'), /^main/);
+  });
 });
