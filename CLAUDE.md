@@ -154,7 +154,8 @@ Layers (the rules and how each is enforced are in `docs/architecture.md`):
 - `src/core/` — pure logic, no I/O, importable by the server and served to
   the browser as-is: `layout.mjs` (queue JSON → columns, counters, arrows,
   state lines, picker groups), `hash.mjs` (`#i-<id>-<doc>`), `docref.mjs`
-  (which ref and folder an intent's documents are read from). Imports nothing
+  (which ref and folder an intent's documents are read from), `queue.mjs`
+  (the queue's five groups and `findInQueue`). Imports nothing
   from `src/server/`, `src/web/` or `node:`.
 - `src/server/` — all I/O: `repo.mjs` (every call on the target repo:
   checks it, runs its `scripts/queue.mjs --json`, reads documents with

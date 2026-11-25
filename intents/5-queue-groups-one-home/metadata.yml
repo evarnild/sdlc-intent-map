@@ -2,7 +2,7 @@
 id: 5
 slug: queue-groups-one-home
 type: refactor           # feature | fix | refactor | adjustment | experiment
-status: accepted          # draft | accepted | in-progress | in-review | done | abandoned | deferred
+status: in-review          # draft | accepted | in-progress | in-review | done | abandoned | deferred
 title: The queue's groups and the queue lookup each have one home, in the core
 review_tier:             # empty = REVIEW-POLICY.md's path table decides; set only to raise it (attested | reviewed)
 # Gates: the date you passed each one (a bare date), or `<date> by-agent` when

@@ -175,3 +175,10 @@ APIs.
 <!-- The implementer appends here, one entry per phase: date, commits, what
 shipped, test counts, anything that diverged from the plan. Nothing above
 this line is the implementer's to edit. -->
+
+### 2026-11-25 - subtasks 1 to 3
+
+- Commits: eb2721c (characterise findInQueue), 71a2cba (move to src/core/queue.mjs), and the §5 commit that records the exception, updates CLAUDE.md and sets in-review.
+- Shipped: `src/core/queue.mjs` (`GROUPS`, `QUEUE_GROUPS`, `findInQueue`); `pickerGroups`, `repo.mjs` and `server.mjs` read from it; the characterisation test moved to `src/core/queue.test.mjs` (import line only changed, plus the one order test); exception row in docs/architecture.md; CLAUDE.md names the module.
+- Tests: kit 376 pass; app 106 pass (was 105 before the one added order test; the 11 characterisation tests moved, not added).
+- Divergences: none. The picker-order assertion lives in queue.test.mjs (imports `pickerGroups` from layout.mjs), as the plan said.
