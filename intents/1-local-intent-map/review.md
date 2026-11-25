@@ -159,3 +159,33 @@ Verified myself (reviewer, worktree at adaf68e):
 
 Taken on trust:
 - The implementer's statement that it stopped the hung processes its own P8 run left behind.
+
+## KonMari check
+
+KonMari ran from base 045fe72: `outcome: kept`, one tidy-up commit
+(bb96c11 `§1 konmari: one titleOf rule for an intent's display name`, in
+`src/core/layout.mjs` and `src/web/app.mjs`) and the record commit 4786ace
+(`konmari.md` only). A second fold (`QUEUE_GROUPS` into the core) was not
+committed, because its verify run was stopped for low memory and the files
+were restored. It is recorded under "Looked at and left" and as a proposed
+refactor intent.
+
+**Coordinator, re-run** (worktree at 4786ace, one command at a time):
+- `npm run verify`: exit 0; lint clean (no warnings, as before); `test:kit` 376 pass, 0 fail; `test:app` 95 pass, 0 fail. The test count did not fall, and the warning count did not rise.
+- `npm run check:intent`: FAIL with only "A live check is owed and not recorded…", note "33 file(s), 3643 line(s) changed outside intents/".
+- Killed mutants on the files the tidy-up changed, re-applied at their moved lines with the same harness:
+  - L29a (`layout.mjs:151`) and L29c (`:151`): killed by "draws an arrow for a direct open blocker, source to target, with the reason".
+  - L29b (`:152`) and L29c2 (`:152`): killed by "same column: bottom of the upper to top of the lower, and the reverse".
+  - PDW (`app.mjs:192`): killed by lint (`'doc' is defined but never used`).
+
+  `git status --short` was empty afterwards.
+- Size baseline: still `{}`, since no budgeted file is over 500 lines. No ceiling moved.
+
+**Reviewer's read of 045fe72..4786ace** (`sdlc-intent-map-reviewer`, read only):
+- Reach: pass. It replaces the intent's own five copies of `title ?? slug ?? ''`, at `layout.mjs` 51, 79, 80, 124 and the reader title in `app.mjs`, and nothing else.
+- Behaviour: pass, no change. `titleOf(i)` is exactly `i.title ?? i.slug ?? ''` at every site.
+- Tests, dependencies, suppressions: pass. No test file, `package.json` or lockfile changed, and no lint suppression was added.
+- Principles: pass on 1, 2, 3, 4, 5, 6 and 9.
+- `konmari.md` matches the commits: `outcome: kept` stands alone on its line, `## Tidied` lists bb96c11, and what was left and the two proposed refactor intents are recorded.
+
+No finding.
