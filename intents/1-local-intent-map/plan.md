@@ -349,3 +349,56 @@ Divergences from the plan:
   updated the same way.
 - The Edge-based look above used the machine's installed Edge in headless mode;
   nothing from it is committed.
+
+### Rework after review round 1 (2026-11-25)
+
+Commits: cd9a4bc, 8b32a17, 736227a, and the commit adding this entry. Tests
+after: `test:kit` 376 pass (was 374), `test:app` 95 pass (was 82), 0 fail.
+
+- HIGH-1: no code change. The owner chose (c); the coordinator amended
+  spec.md (c58b775). B5 (no cache) and B8 unchanged.
+- HIGH-2: `layout.test.mjs` asserts `d` starts with `M x1 y1 ` and ends with
+  ` x2 y2` for the horizontal and both same-column cases. Mutants run: `d`
+  ends at the source (L29a), straight path ends at its start (L29b), starts at
+  `M 0 0` (L29c): all killed.
+- MEDIUM-1: `api.test.mjs` failing-queue fixture: `/api/intent/1` is 502, while
+  `abc`, `..%2F..`, `1.5`, `-1` are 404. Removing the guard (S5a) and
+  loosening it to `\w+` (S5b): killed.
+- MEDIUM-2: 403 for `localhost.evil.example:<port>`, `localhost:<port+1>`,
+  `127.0.0.1:<port+1>`. `startsWith('localhost')` (S3b) and a port-ignoring
+  check (S3c, run this time): killed.
+- MEDIUM-3: `gitRead` exported; test: `checkout`, `commit`, `config` reject
+  with "not allowed" and change nothing. Allow-list off (P1): killed. The
+  `repo.mjs` header names the `session-io` exception.
+- MEDIUM-4: `readQueue(root, { timeoutMs })`, `startServer({ queueTimeoutMs })`,
+  `QUEUE_TIMEOUT_MS` exported. Fixture `queue.mjs` writes its pid and never
+  exits; with 500 ms: 502 containing "timed out", and the pid is gone
+  afterwards (polled). The test has a 20 s limit so a mutant fails instead of
+  hanging. No timeout (P8) and a 300 s default (P8b, caught by the
+  `=== 30_000` assertion): killed.
+- MEDIUM-5: `chooseFolder(1, ['10-other','11-x']) === null`; prefix without
+  `-` (D3): killed.
+- MEDIUM-6: `intent-check-lib.test.mjs`: untested change to `src/core/x.mjs`
+  routes as core code, `src/server/x.mjs` and `src/web/x.mjs` do not.
+  `CORE_CODE = [/^src\//]` (K1): killed.
+- MEDIUM-7: `src/architecture.test.mjs` treats bare built-ins
+  (`builtinModules`, also `fs/promises`) as `node:` imports; planted `path`
+  and `fs/promises` cases (7 violations now). Treating only `node:` as
+  built-in: killed. `eslint.config.mjs`: flat-config globals merge, so the node
+  set is now given only to files outside `src/core` and `src/web` (plus
+  tests), and `src/core` gets `globals.es2021`; a probe `process.env` in
+  `src/core/hash.mjs` fails lint (`no-undef`). No real core code needed node
+  globals. `docs/architecture.md` principle 1 says what is enforced.
+- MEDIUM-8: `pickDoc(documents, wanted)` in `src/core/hash.mjs`, used by
+  `app.mjs`; tests: wanted exists, missing, null, first one missing, no
+  documents, unknown name.
+- MEDIUM-9: README.md describes the product, `npm start -- <repo>`, port 5300,
+  `npm ci` and `npm run setup:worktree`.
+- LOW-1: `intents/README.md` and `scripts/spawn-intent.mjs` passages updated.
+- LOW-2: exceptions row added to `docs/architecture.md`.
+- LOW-3, LOW-4: no change, as instructed.
+
+Divergences: none from the plan. `eslint.config.mjs` was restructured (not
+just the comment) because the review's probe showed globals merge. No
+dependency added. The hung-queue mutant (P8) leaves its child process running
+until killed; I stopped the three processes it started by hand.
