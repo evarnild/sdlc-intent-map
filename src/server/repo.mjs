@@ -97,15 +97,6 @@ export async function readQueue(root, { timeoutMs = QUEUE_TIMEOUT_MS } = {}) {
   return { ...data, repo: basename(root), main, at: new Date().toISOString() };
 }
 
-/** The queue's record of intent `id`, or null. */
-export function findInQueue(queue, id) {
-  for (const g of QUEUE_GROUPS) {
-    const hit = queue[g].find((i) => i.id === id);
-    if (hit) return hit;
-  }
-  return null;
-}
-
 /** I3: the one local branch whose name carries `id`, by the kit's own rule; null when none or in conflict. */
 function branchOf(root, id) {
   try {

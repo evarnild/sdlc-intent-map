@@ -2,6 +2,8 @@
 // deterministic: the same queue always gives the same layout (B14), so the
 // tests can assert positions and arrow endpoints by id.
 
+import { GROUPS } from './queue.mjs';
+
 export const GEOMETRY = {
   pad: 20, // around the board
   headerH: 34, // column title
@@ -45,15 +47,8 @@ export function stateLine(intent) {
 
 /** The queue's groups as the picker lists them (B19), empty groups omitted. */
 export function pickerGroups(queue) {
-  const groups = [
-    ['inFlight', 'In flight'],
-    ['queued', 'Queued'],
-    ['shipped', 'Shipped'],
-    ['stopped', 'Stopped'],
-    ['other', 'Other'],
-  ];
-  return groups
-    .map(([key, title]) => ({ key, title, items: (queue[key] ?? []).map((i) => ({ id: i.id, title: titleOf(i), status: i.status })) }))
+  return GROUPS
+    .map(({ key, title }) => ({ key, title, items: (queue[key] ?? []).map((i) => ({ id: i.id, title: titleOf(i), status: i.status })) }))
     .filter((g) => g.items.length);
 }
 

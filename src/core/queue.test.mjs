@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findInQueue } from './repo.mjs';
+import { findInQueue, GROUPS, QUEUE_GROUPS } from './queue.mjs';
+import { pickerGroups } from './layout.mjs';
 
 const empty = () => ({ inFlight: [], queued: [], shipped: [], stopped: [], other: [] });
 
@@ -40,4 +41,11 @@ test('findInQueue compares strictly: a string id does not match a numeric one', 
 
 test('findInQueue returns null on an empty queue', () => {
   assert.equal(findInQueue(empty(), 1), null);
+});
+
+test('QUEUE_GROUPS is the five keys in the picker\'s order, and pickerGroups lists them so', () => {
+  assert.deepEqual(QUEUE_GROUPS, ['inFlight', 'queued', 'shipped', 'stopped', 'other']);
+  const q = Object.fromEntries(QUEUE_GROUPS.map((g, n) => [g, [{ id: n + 1, slug: g, status: 'x' }]]));
+  assert.deepEqual(pickerGroups(q).map((g) => g.key), QUEUE_GROUPS);
+  assert.deepEqual(pickerGroups(q).map((g) => g.title), GROUPS.map((g) => g.title));
 });

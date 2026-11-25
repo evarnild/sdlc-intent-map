@@ -1,8 +1,9 @@
 // The HTTP server (B2, B5, B8). `node:http`, no framework. It only wires
 // requests to repo.mjs and static.mjs; the logic lives in src/core.
 import { createServer } from 'node:http';
-import { checkRepo, findInQueue, readIntent, readQueue, RepoError } from './repo.mjs';
+import { checkRepo, readIntent, readQueue, RepoError } from './repo.mjs';
 import { readStatic } from './static.mjs';
+import { findInQueue } from '../core/queue.mjs';
 
 export const DEFAULT_PORT = 5300;
 export const HOST = '127.0.0.1';
