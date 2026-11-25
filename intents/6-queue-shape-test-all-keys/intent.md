@@ -85,3 +85,19 @@ as "LOW-1 … three small problems with one fix":
 - The review's other note (a pre-existing gap: the shape check had no test for
   a missing `inFlight` before §5) is the same gap as M19, so one intent covers
   both.
+
+## Progress
+
+- 2026-11-25, commit b4d063b: `src/server/queue-shape.test.mjs` now loops over
+  `QUEUE_GROUPS` (from `../core/queue.mjs`), builds each queue without one key
+  via `Object.fromEntries(Object.entries(all).filter(...))`, asserts 502 and
+  `/not a queue/` for each, then accepts the full five-key queue (`other` is
+  `[]`). One fixture, one commit per case. The `eslint-disable-line` is gone;
+  `grep -rn "eslint-disable" src bin scripts` finds nothing. No source file
+  changed.
+- Mutants in `src/server/repo.mjs` line 93 (probes only, restored by copy),
+  each run against the new test file: `slice(1)` (drops inFlight, M19) KILLED;
+  `slice(0,4)` (drops other) KILLED; filtering out queued, shipped, stopped
+  one at a time: each KILLED; `.some` instead of `.every` KILLED.
+- Tests: `npm run verify` green; product suite 107 tests, 107 pass (the one
+  test was widened, not added).
