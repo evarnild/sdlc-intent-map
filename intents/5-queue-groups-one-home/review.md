@@ -120,6 +120,19 @@ Verified myself (reviewer; worktree at HEAD bc83beb on `refactor/5-queue-groups-
 Taken on trust:
 - Round 1's M1, M2, M6–M13, M15, M16, and the reviewer's T1–T3 probes of the new test.
 
+## KonMari check
+
+KonMari ran from base 99ba242 and found **nothing to tidy**
+(`outcome: nothing to tidy`, `konmari.md` line 4): no tidy-up commit, and one
+commit in range, the record `b13f887` `§5: konmari record`.
+
+**Coordinator, re-run:**
+- `git log 99ba242..HEAD` lists only `b13f887`, and `git diff --stat 99ba242..HEAD` shows one file changed: `intents/5-queue-groups-one-home/konmari.md` (+20). No source, test, doc, `package.json` or `metadata.yml` line changed.
+- Because no code changed since round 2's re-check (HEAD there was bc83beb; the files under `src/`, `docs/` and `CLAUDE.md` are identical), the round's `verify` (376 kit, 107 product, lint clean), `check:intent` and mutant results above still hold; KonMari's own `verify` at 99ba242 also exited 0 with the same counts. No mutant was re-applied, since no line moved.
+- `git status --short` is empty.
+
+Read of the record by the coordinator (a record-only commit, so no reviewer was delegated): `outcome: nothing to tidy` stands alone on its line; it names the single place the group keys, their order and the lookup are now defined (`src/core/queue.mjs`), says why `layoutBoard`'s use of `queue.inFlight` is not a duplicate, lists "Looked at and left" (the import order in `server.mjs`; round 2's LOW-1 on `queue-shape.test.mjs`, left for the owner's diff read), and proposes no refactor intent. No finding.
+
 # Round 1 (history)
 
 ## §5 review — The queue's groups and the queue lookup each have one home, in the core
