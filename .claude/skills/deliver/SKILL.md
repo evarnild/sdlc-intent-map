@@ -45,7 +45,12 @@ another.
    the first thing that would stop it.
 5. **Where:** the script runs only from the main checkout, on `main`. From
    a worktree it stops at `start` with "run from the main checkout"; relay
-   that, don't work around it.
+   that, don't work around it. **The main checkout needs its dependencies.**
+   Only spawned worktrees get `npm run setup:worktree`; if the project has
+   dependencies and `main` has no `node_modules` (or the merge adds some),
+   `npm run verify` fails after the merge is done. Say so and ask the owner
+   whether to run `npm run setup:worktree` there first; a `--dry-run` does not
+   catch it.
 
 ## Relay the report
 
