@@ -9,13 +9,13 @@ review_tier:             # empty = REVIEW-POLICY.md's path table decides; set on
 # an agent recorded it on your request. Leave empty until passed.
 intent_accepted: 2026-11-25 by-agent    # owner: "push and accept 3 4 5 /auto 3 /auto 5"
 spec_accepted: 2026-11-25 by-agent    # owner: "yes to 3 and /auto 3"
-plan_approved:           # feature, fix, refactor
+plan_approved: 2026-11-25 by-agent    # auto: owner "/auto 3" (auto_authorized 2026-11-25)
 live_checked:            # only when review.md says live-check: owed — the day you ran it yourself
 merged:                  # merge commit hash
 konmari:                 # empty, or `skip` (the owner's words in a comment): skips the KonMari tidy-up step. NOT a gate
 auto_authorized: 2026-11-25 by-agent    # owner: "yes to 3 and /auto 3"
 auto_round:              # /auto only: the review round a stopped run is in, 1 to 3
-auto_stopped: spec drafted, waiting for spec_accepted        # /auto only: why it stopped, written without ` #`; cleared on resume
+auto_stopped:                # /auto only: why it stopped, written without ` #`; cleared on resume
 follows_up:              # fix only: id of the intent whose change caused this defect, if known
 links:
   - intents/1-local-intent-map    its two reviews are where the harness failed
