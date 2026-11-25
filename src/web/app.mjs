@@ -4,7 +4,7 @@
 import { marked } from '/vendor/marked.js';
 import DOMPurify from '/vendor/purify.js';
 import { buildHash, DOCS, parseHash, pickDoc } from '/core/hash.mjs';
-import { layoutBoard, pickerGroups } from '/core/layout.mjs';
+import { layoutBoard, pickerGroups, titleOf } from '/core/layout.mjs';
 import { renderMarkdown } from '/web/render.mjs';
 
 const SVG = 'http://www.w3.org/2000/svg';
@@ -155,7 +155,7 @@ function drawReader(data, doc) {
   const m = data.intent;
   $('reader-missing').hidden = true;
   $('reader').hidden = false;
-  $('reader-title').textContent = `§${data.id} ${m.title ?? m.slug ?? ''}`;
+  $('reader-title').textContent = `§${data.id} ${titleOf(m)}`;
   $('reader-meta').textContent = [m.type, m.status, m.gates, m.auto, `read from ${data.ref}`].filter(Boolean).join(' · ');
   const open = new Set(m.blocked_by_open ?? []);
   $('reader-blockers').replaceChildren(

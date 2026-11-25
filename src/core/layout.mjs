@@ -23,6 +23,11 @@ const COLUMNS = [
   { key: 'other', title: 'Other', tone: 'other' },
 ];
 
+/** The name an intent is shown by: its title, else its slug. */
+export function titleOf(intent) {
+  return intent.title ?? intent.slug ?? '';
+}
+
 /** `text` cut with an ellipsis to at most `max` characters. */
 export function truncate(text, max) {
   const s = String(text ?? '');
@@ -48,7 +53,7 @@ export function pickerGroups(queue) {
     ['other', 'Other'],
   ];
   return groups
-    .map(([key, title]) => ({ key, title, items: (queue[key] ?? []).map((i) => ({ id: i.id, title: i.title ?? i.slug ?? '', status: i.status })) }))
+    .map(([key, title]) => ({ key, title, items: (queue[key] ?? []).map((i) => ({ id: i.id, title: titleOf(i), status: i.status })) }))
     .filter((g) => g.items.length);
 }
 
@@ -76,8 +81,8 @@ export function layoutBoard(queue) {
     const list = members[col.key].map((i, row) => {
       const c = {
         id: i.id,
-        label: truncate(i.title ?? i.slug ?? '', TITLE_MAX),
-        title: i.title ?? i.slug ?? '',
+        label: truncate(titleOf(i), TITLE_MAX),
+        title: titleOf(i),
         stateLine: stateLine(i),
         status: i.status,
         tone: col.tone,
@@ -121,7 +126,7 @@ export function layoutBoard(queue) {
     columns,
     arrows,
     problems: [...(queue.problems ?? [])],
-    shipped: (queue.shipped ?? []).map((i) => ({ id: i.id, title: i.title ?? i.slug ?? '', type: i.type })),
+    shipped: (queue.shipped ?? []).map((i) => ({ id: i.id, title: titleOf(i), type: i.type })),
     width,
     height,
   };
