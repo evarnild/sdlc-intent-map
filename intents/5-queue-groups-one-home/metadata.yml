@@ -15,7 +15,7 @@ merged:                  # merge commit hash
 konmari:                 # empty, or `skip` (the owner's words in a comment): skips the KonMari tidy-up step. NOT a gate
 auto_authorized: 2026-11-25 by-agent    # owner: "1 for the §5 /auto 5"
 auto_round: 2            # /auto only: the review round a stopped run is in, 1 to 3
-auto_stopped:                # /auto only: why it stopped, written without ` #`; cleared on resume
+auto_stopped: escalate, owner reads the diff        # /auto only: why it stopped, written without ` #`; cleared on resume
 follows_up:              # fix only: id of the intent whose change caused this defect, if known
 links:
   - intents/1-local-intent-map    its konmari.md is the source
