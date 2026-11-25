@@ -2,7 +2,7 @@
 id: 2
 slug: deliver-needs-installed-main
 type: adjustment         # feature | fix | refactor | adjustment | experiment
-status: in-review        # draft | accepted | in-progress | in-review | done | abandoned | deferred
+status: done
 title: /deliver and sdlc.md say the main checkout needs its dependencies installed
 review_tier:             # empty = REVIEW-POLICY.md's path table decides; set only to raise it (attested | reviewed)
 # Gates: the date you passed each one (a bare date), or `<date> by-agent` when
@@ -11,7 +11,7 @@ intent_accepted: 2026-11-25 by-agent    # owner: "yes, record it and make the ed
 spec_accepted:           # feature only
 plan_approved:           # feature, fix, refactor
 live_checked:            # only when review.md says live-check: owed — the day you ran it yourself
-merged:                  # merge commit hash
+merged: c6683fc    # 2026-11-25, merged by Claude on the owner's explicit request in chat
 konmari:                 # empty, or `skip` (the owner's words in a comment): skips the KonMari tidy-up step. NOT a gate
 auto_authorized:         # /auto only: the date the owner typed /auto <id> (a bare date, or `<date> by-agent`); NOT a gate
 auto_round:              # /auto only: the review round a stopped run is in, 1 to 3
