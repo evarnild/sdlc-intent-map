@@ -10,6 +10,7 @@ import { existsSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { chooseFolder, chooseRef } from '../core/docref.mjs';
 import { DOCS } from '../core/hash.mjs';
+import { QUEUE_GROUPS } from '../core/queue.mjs';
 // Server code may import the kit's scripts (docs/architecture.md, principle 2):
 // one definition of "the branch that carries intent <id>".
 import { readIntentMetadataFromBranch } from '../../scripts/session-io.mjs';
@@ -17,7 +18,6 @@ import { readIntentMetadataFromBranch } from '../../scripts/session-io.mjs';
 const MAIN = 'main';
 export const QUEUE_TIMEOUT_MS = 30_000;
 const MAX_BUFFER = 32 * 1024 * 1024;
-const QUEUE_GROUPS = ['inFlight', 'queued', 'shipped', 'stopped', 'other'];
 
 /** B9: the only git subcommands the server runs on the target repo. */
 export const READ_ONLY_GIT = ['rev-parse', 'for-each-ref', 'ls-tree', 'show'];

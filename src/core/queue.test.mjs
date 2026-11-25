@@ -48,4 +48,5 @@ test('QUEUE_GROUPS is the five keys in the picker\'s order, and pickerGroups lis
   const q = Object.fromEntries(QUEUE_GROUPS.map((g, n) => [g, [{ id: n + 1, slug: g, status: 'x' }]]));
   assert.deepEqual(pickerGroups(q).map((g) => g.key), QUEUE_GROUPS);
   assert.deepEqual(pickerGroups(q).map((g) => g.title), GROUPS.map((g) => g.title));
+  assert.deepEqual(pickerGroups(q).map((g) => g.title), ['In flight', 'Queued', 'Shipped', 'Stopped', 'Other']);
 });

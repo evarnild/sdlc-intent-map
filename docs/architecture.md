@@ -84,4 +84,4 @@ project needs; reviews cite them by number.
 | Exception | Principle | Reason |
 | --- | --- | --- |
 | `src/server/repo.mjs` imports `readIntentMetadataFromBranch` from `scripts/session-io.mjs` | 2 | One definition of "the branch that carries intent <id>" (principle 5). That function runs git outside the server's `READ_ONLY_GIT` allow-list; by reading it runs only `for-each-ref`, `ls-tree` and `show`. |
-| The picker group titles in `src/core/queue.mjs` repeat the titles in `scripts/queue-lib.mjs` `GROUPS` | 4 | The core may not import `scripts/` (principle 2), and the target repo's `queue.mjs --json` carries no titles. The titles are the page's own wording; the group keys and their order have one home, `src/core/queue.mjs`. |
+| The picker group titles in `src/core/queue.mjs` repeat four of the five titles in `scripts/queue-lib.mjs` `GROUPS` (the page says 'Other' where the kit says 'Unrecognised status') | 4 | The core may not import `scripts/` (principle 2), and the target repo's `queue.mjs --json` carries no titles. The titles are the page's own wording; the group keys and their order have one home, `src/core/queue.mjs`. |

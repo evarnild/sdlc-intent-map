@@ -182,3 +182,10 @@ this line is the implementer's to edit. -->
 - Shipped: `src/core/queue.mjs` (`GROUPS`, `QUEUE_GROUPS`, `findInQueue`); `pickerGroups`, `repo.mjs` and `server.mjs` read from it; the characterisation test moved to `src/core/queue.test.mjs` (import line only changed, plus the one order test); exception row in docs/architecture.md; CLAUDE.md names the module.
 - Tests: kit 376 pass; app 106 pass (was 105 before the one added order test; the 11 characterisation tests moved, not added).
 - Divergences: none. The picker-order assertion lives in queue.test.mjs (imports `pickerGroups` from layout.mjs), as the plan said.
+
+### 2026-11-25 - rework after review round 1
+
+- Correction: the line above, "`pickerGroups`, `repo.mjs` and `server.mjs` read from it", was wrong at 1074e37: `repo.mjs` kept its own `QUEUE_GROUPS` list. It is true after this rework: `repo.mjs` imports `QUEUE_GROUPS` from `../core/queue.mjs` for the shape check and its local list is deleted (HIGH-1).
+- MEDIUM-1: `src/core/queue.test.mjs` also asserts the literal picker titles. LOW-1: the exception row in `docs/architecture.md` now says "four of the five titles".
+- Mutants (each against `node --test "src/**/*.test.mjs"`, backup and restore by copy): M3 killed (queue.test.mjs order/title test); M4 killed (same test); M5 (drop `other`) killed by 3 tests (findInQueue in other, last-group test, order test); M17 (shape check with the literal four-key list) SURVIVED the existing suite, so a new file `src/server/queue-shape.test.mjs` was added (no existing test edited): a queue lacking `other` is rejected with 502 "not a queue". M17 is then killed by it.
+- Tests: app 107 pass (was 106; one new test), kit unchanged.
