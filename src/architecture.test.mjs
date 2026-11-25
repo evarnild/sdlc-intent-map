@@ -6,9 +6,14 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
+import { builtinModules } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)));
+
+// `fs` and `node:fs` are the same module: both count as a node: import.
+const BUILTINS = new Set(builtinModules);
+const isBuiltin = (spec) => spec.startsWith('node:') || BUILTINS.has(spec) || BUILTINS.has(spec.split('/')[0]);
 
 const IMPORT_RES = [
   /\bimport\s+(?:[\w*${}\s,]+?\s+from\s+)?['"]([^'"]+)['"]/g, // import x from '…', import '…'
@@ -41,7 +46,7 @@ export function findViolations(src) {
       if (/\.test\.mjs$/.test(file)) continue; // tests may use node:; they are not shipped
       for (const spec of importsOf(readFileSync(file, 'utf8'))) {
         const where = `${relative(src, file).split(sep).join('/')} imports '${spec}'`;
-        if (spec.startsWith('node:')) {
+        if (isBuiltin(spec)) {
           if (layer === 'core') out.push(`${where}: src/core must not import node: modules`);
           continue;
         }
@@ -77,12 +82,14 @@ describe('architecture (B24)', () => {
       put('core/b.mjs', "import fs from 'node:fs';\nexport default fs;\n");
       put('core/c.mjs', "export default await import('../web/w.mjs');\n");
       put('web/d.mjs', "import { s } from '../server/s.mjs';\nexport default s;\n");
+      put('core/f.mjs', "import { join } from 'path';\nexport default join;\n");
+      put('core/g.mjs', "import { readFile } from 'fs/promises';\nexport default readFile;\n");
       put('core/e.mjs', "export { s } from '../server/s.mjs';\n");
       const v = findViolations(join(tmp, 'src'));
-      for (const f of ['core/a.mjs', 'core/b.mjs', 'core/c.mjs', 'web/d.mjs', 'core/e.mjs']) {
+      for (const f of ['core/a.mjs', 'core/b.mjs', 'core/c.mjs', 'web/d.mjs', 'core/e.mjs', 'core/f.mjs', 'core/g.mjs']) {
         assert.ok(v.some((m) => m.startsWith(f)), `no violation reported for ${f}: ${v.join('; ')}`);
       }
-      assert.equal(v.length, 5);
+      assert.equal(v.length, 7);
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }

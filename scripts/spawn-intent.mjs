@@ -5,7 +5,7 @@
 // Turns intent <id> into a ready parallel session: a worktree on the intent's
 // branch in ../sdlc-intent-map-wt/<id>-<slug>, the project's own per-worktree setup
 // (`npm run setup:worktree` if package.json defines it: installing
-// dependencies, say; §1 picks the stack, so the kit defines none), a reserved
+// dependencies, say; this repo defines `npm ci`), a reserved
 // dev port, and a CLAUDE.local.md brief the session loads on start.
 // `--no-install` skips the setup. `--remove` takes the worktree down once the
 // branch is merged; the branch itself is left for the owner to delete.

@@ -25,7 +25,9 @@ project needs; reviews cite them by number.
    parsing, document-ref choice) and imports nothing from `src/server/`,
    `src/web/` or any `node:` module, so the server and the browser can both
    load it as-is. *Enforced* by `src/architecture.test.mjs`, which reads every
-   import in `src/core/` and fails on a forbidden one; a second case plants
+   import in `src/core/` (a bare built-in such as `fs` counts as `node:fs`) and fails
+   on a forbidden one; `eslint.config.mjs` gives `src/core/` the language's own
+   globals only, so `process` or `window` there fails lint; a second case plants
    a bad import in a temp copy and proves the rule fires.
 2. **Dependencies point one way.** `bin/` → `src/server/` → `src/core/`, and
    `src/web/` → `src/core/`. *Enforced* by the same test for what it names:
@@ -81,4 +83,4 @@ project needs; reviews cite them by number.
 
 | Exception | Principle | Reason |
 | --- | --- | --- |
-| (none yet) | | |
+| `src/server/repo.mjs` imports `readIntentMetadataFromBranch` from `scripts/session-io.mjs` | 2 | One definition of "the branch that carries intent <id>" (principle 5). That function runs git outside the server's `READ_ONLY_GIT` allow-list; by reading it runs only `for-each-ref`, `ls-tree` and `show`. |
