@@ -7,15 +7,20 @@ code in this repository.
 
 sdlc-intent-map: An interactive intent map, like the Claude artifact, that runs standalone on a local machine.
 
-So far the repository holds only the
-AI-native SDLC kit (from ai-sdlc-kit, first built for heraklios). The
-product's stack and architecture are **§1's decision** (undecided). Until §1
-merges, there is no product code, and no section below describes any.
+The repository holds the AI-native SDLC kit (from ai-sdlc-kit, first built for
+heraklios) and the product: a Node server, started with
+`npm start -- <repo>`, that serves on `127.0.0.1:5300` an intent map of any
+SDLC-kit repository. It gets the board from that repo's own
+`scripts/queue.mjs --json` and the documents from `git show`, and renders
+them in a plain-ES-module page with no build step and no network access. It is
+read-only on the repo it shows. The spec is
+`intents/1-local-intent-map/spec.md`.
 
 ## Commands
 
 ```
-npm run verify        # THE check before a change is done (today: the kit's own tests)
+npm start -- <repo>   # serve the intent map of <repo> (default: cwd) on http://localhost:5300/ (--port <n>)
+npm run verify        # THE check before a change is done: lint, the kit's tests, the product's tests
 npm run check:intent  # does this branch's change match its intent? (intents/README.md)
 npm run size:baseline  # measure the size budget; --write rewrites scripts/size-baseline.json (a shrinking change runs it)
 npm run sdlc:scan     # the evidence behind docs/sdlc-grid.md
@@ -24,11 +29,15 @@ npm run spawn -- <id> # parallel session for an intent (see "Parallel sessions")
 npm run sessions      # what every worktree/session is doing (--json for data, --log for the event tail)
 npm run deliver -- <id>  # merge a reviewed intent, bookkeep, push, remove worktree and branch (the /deliver skill)
 npm run test:kit      # node --test over scripts/*.test.mjs
+npm run test:app      # node --test over src/**/*.test.mjs
+npm run lint          # eslint over src and bin
+npm run setup:worktree # npm ci (spawn runs it in a fresh worktree)
 ```
 
-The kit needs Node ≥ 22 and nothing else: no `npm install`. §1 extends
-`verify` with the product's build, lint and tests, whatever the stack is.
-Keep it **one** command.
+Node ≥ 22 is required. The kit's own scripts need nothing else; the product
+needs `npm ci` (`npm run setup:worktree`) for its two runtime packages
+(`marked`, `dompurify`) and its dev tools (eslint, jsdom). `verify` is one
+command and has no build step.
 
 ## How work flows
 
@@ -133,30 +142,70 @@ npm run sessions -- --log 30    # the raw event tail
   once. Merges and reviews are serial, so more sessions mostly add rebases.
 - Spawned worktrees live outside the repo on purpose, so the project's
   tools never pick up a nested checkout. Each worktree installs its own
-  dependencies: §1 defines `npm run setup:worktree` (for example `npm ci` or
-  `uv sync`) once the stack has any, and spawn runs it.
+  dependencies: `npm run setup:worktree` (`npm ci`), which spawn runs.
 
 ## Architecture
 
 The principles, how each is checked and the recorded exceptions are in
 `docs/architecture.md`; this section is the module map.
 
-None yet. §1 writes this section: the modules, the boundary between pure,
-tested logic and I/O (model calls, channels, storage), and the conventions
-worth knowing before editing. When it does, it also:
+Layers (the rules and how each is enforced are in `docs/architecture.md`):
 
-- narrows `CORE_CODE` in `scripts/intent-check-lib.mjs` to the modules whose
-  mistakes cost most;
-- fills in `docs/architecture.md` (layers, boundaries and how each
-  principle is enforced), narrows `BUDGETED` and `BUDGET_EXCLUDE` in
-  `scripts/size-budget-lib.mjs` to the stack's source files, and runs
-  `npm run size:baseline -- --write`;
-- names the runtime paths that owe a live check (`REVIEW-POLICY.md` →
-  "Live checks", rule 1);
-- names the paths behind the Reviewed tier's "by meaning" list (prompts,
-  user-facing output, credentials, personal data);
-- defines `npm run setup:worktree` if a fresh worktree needs dependencies
-  installed before `npm run verify` can pass.
+- `src/core/` — pure logic, no I/O, importable by the server and served to
+  the browser as-is: `layout.mjs` (queue JSON → columns, counters, arrows,
+  state lines, picker groups), `hash.mjs` (`#i-<id>-<doc>`), `docref.mjs`
+  (which ref and folder an intent's documents are read from). Imports nothing
+  from `src/server/`, `src/web/` or `node:`.
+- `src/server/` — all I/O: `repo.mjs` (every call on the target repo:
+  checks it, runs its `scripts/queue.mjs --json`, reads documents with
+  `git show`), `server.mjs` (`node:http`, the `Host` check, routes
+  `/api/queue` and `/api/intent/<id>`), `static.mjs` (the fixed URL
+  prefixes: `/`, `/web/*`, `/core/*`, `/vendor/marked.js`,
+  `/vendor/purify.js`).
+- `src/web/` — the page: `index.html`, `style.css`, `app.mjs` (board,
+  reader, picker, hash), `render.mjs` (the one Markdown-to-sanitised-HTML
+  function, dependencies injected so the test runs it under jsdom). Imports
+  nothing from `src/server/`.
+- `bin/intent-map.mjs` — the entry point: arguments, start, refusal.
+- `src/test/fixture-repo.mjs` — test helper: a temp git repo holding the
+  kit's queue scripts and given intents on `main` and branches. No test
+  touches a real repo.
+
+Boundary: pure, tested logic in `src/core/`; I/O only in `src/server/`.
+The one exception: `src/server/repo.mjs` imports `readIntentMetadataFromBranch`
+from the kit's `scripts/session-io.mjs`, so there is one definition of "the
+branch that carries intent <id>" (`docs/architecture.md`, principle 2).
+
+Conventions worth knowing before editing:
+
+- The target repo is read-only. The server runs only `git rev-parse`,
+  `for-each-ref`, `ls-tree` and `show` there (arguments as an array, never
+  a shell string), plus the target's own `scripts/queue.mjs`. Documents come
+  from git, never from the working tree.
+- The queue is the target repo's own `queue.mjs --json`, run fresh on every
+  request; there is no cache.
+- Requests whose `Host` is not `localhost:<port>` or `127.0.0.1:<port>` are
+  refused before routing (DNS rebinding). Ids are digits only; documents are
+  from the fixed list in `src/core/hash.mjs`.
+- Markdown reaches the page only through `src/web/render.mjs`. Nothing else
+  assigns HTML.
+- The page loads nothing from another host; `src/server/static.test.mjs`
+  scans for it. Tests use port 0 and close every server they start.
+- Dependencies are pinned exactly in `package.json`; a new one needs a line in
+  the intent's plan saying why.
+
+§1 also did the following, which stand as the current state:
+
+- `CORE_CODE` in `scripts/intent-check-lib.mjs` is `src/core/`;
+  `BUDGETED` in `scripts/size-budget-lib.mjs` is `src/`, `bin/` and
+  `scripts/` JavaScript (`node_modules/` and vendored files are excluded);
+  the size baseline was rewritten.
+- The runtime paths that owe a live check are `bin/**`, `src/server/**` and
+  `src/web/**` (`REVIEW-POLICY.md` → "Live checks", rule 1).
+- No path matches the Reviewed tier's "by meaning" list yet (the product has
+  no model prompts, outbound messages, credentials or personal data); those
+  categories stay Reviewed by meaning if one appears.
+- `npm run setup:worktree` is `npm ci`.
 
 ## Conventions that already apply
 

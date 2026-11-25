@@ -12,20 +12,32 @@ Each principle says how it is checked:
 - **Judged**: review pass 10 reads the plan's "Where this goes" section and
   the diff against it.
 
-The stack is §1's decision, so principles 1 and 2 are placeholders until
-then. §1 names the layers, says which import rules enforce them (a lint rule,
-or a test that proves each rule fires), and narrows `BUDGETED` and
-`BUDGET_EXCLUDE` in `scripts/size-budget-lib.mjs` (principle 8). Add, renumber
-or drop principles as the project needs; reviews cite them by number.
+The stack is Node ≥ 22 with `node:http`, plain ES modules in the browser, no
+build step and `node:test` (§1). The layers are `src/core/` (pure logic),
+`src/server/` (I/O), `src/web/` (the page) and `bin/` (the entry point).
+`BUDGETED` in `scripts/size-budget-lib.mjs` covers the JavaScript under `src/`,
+`bin/` and `scripts/` (principle 8). Add, renumber or drop principles as the
+project needs; reviews cite them by number.
 
 ## Layers and dependencies
 
-1. **The core stays pure.** <§1: the folders holding the domain logic, and
-   what they never import (frameworks, I/O, UI, model SDKs).> *Judged* until
-   an import rule enforces it.
-2. **Dependencies point one way.** <§1: the layers in order, for example
-   `ui` → `app` → `domain`, never back up; skipping a layer downwards is
-   allowed.> *Judged* until an import rule enforces it.
+1. **The core stays pure.** `src/core/` holds the logic (board layout, hash
+   parsing, document-ref choice) and imports nothing from `src/server/`,
+   `src/web/` or any `node:` module, so the server and the browser can both
+   load it as-is. *Enforced* by `src/architecture.test.mjs`, which reads every
+   import in `src/core/` (a bare built-in such as `fs` counts as `node:fs`) and fails
+   on a forbidden one; `eslint.config.mjs` gives `src/core/` the language's own
+   globals only, so `process` or `window` there fails lint; a second case plants
+   a bad import in a temp copy and proves the rule fires.
+2. **Dependencies point one way.** `bin/` → `src/server/` → `src/core/`, and
+   `src/web/` → `src/core/`. *Enforced* by the same test for what it names:
+   `src/web/` never imports from `src/server/`, and nothing in `src/core/` or
+   `src/web/` imports from outside `src/`. That `bin/` and `src/server/` do not
+   import `src/web/` is *Judged*. **Recorded exception:** `src/server/repo.mjs` imports
+   `readIntentMetadataFromBranch` from the kit's `scripts/session-io.mjs`, so
+   the rule for "the branch that carries intent <id>" has one definition
+   (principle 5). Server code may import the kit's `scripts/`; `src/core/` and
+   `src/web/` may not.
 
 ## Where logic lives
 
@@ -71,4 +83,4 @@ or drop principles as the project needs; reviews cite them by number.
 
 | Exception | Principle | Reason |
 | --- | --- | --- |
-| (none yet) | | |
+| `src/server/repo.mjs` imports `readIntentMetadataFromBranch` from `scripts/session-io.mjs` | 2 | One definition of "the branch that carries intent <id>" (principle 5). That function runs git outside the server's `READ_ONLY_GIT` allow-list; by reading it runs only `for-each-ref`, `ls-tree` and `show`. |

@@ -3,10 +3,15 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "SDLC kit only for now; the stack is §1's decision. The kit's scripts need Node ≥ 22 and nothing else.",
-  "engines": { "node": ">=22" },
+  "description": "Intent map: serves an SDLC-kit repo's intents on localhost. Needs Node >= 22.",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
+    "start": "node bin/intent-map.mjs",
+    "lint": "eslint src bin",
     "test:kit": "node --test \"scripts/*.test.mjs\"",
+    "test:app": "node --test \"src/**/*.test.mjs\"",
     "check:intent": "node scripts/check-intent.mjs",
     "size:baseline": "node scripts/size-budget.mjs",
     "sdlc:scan": "node scripts/sdlc-scan.mjs",
@@ -14,6 +19,17 @@
     "spawn": "node scripts/spawn-intent.mjs",
     "sessions": "node scripts/sessions.mjs",
     "deliver": "node scripts/deliver.mjs",
-    "verify": "npm run test:kit"
+    "verify": "npm run lint && npm run test:kit && npm run test:app",
+    "setup:worktree": "npm ci"
+  },
+  "dependencies": {
+    "marked": "18.3.0",
+    "dompurify": "3.5.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.15.0",
+    "globals": "17.14.0",
+    "jsdom": "31.0.1"
   }
 }

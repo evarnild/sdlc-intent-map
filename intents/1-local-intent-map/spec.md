@@ -257,9 +257,15 @@ repo's kit `scripts/` copied in, intents committed on `main` and on
   not `localhost:<port>` or `127.0.0.1:<port>` are refused (against DNS
   rebinding from a web page); git is run with an argument array, never a
   shell string; ids are numeric and docs from a fixed list (B8, B20).
-- **Performance:** on Héraklios (~90 intents) `/api/queue` answers within
-  the time `npm run queue` takes there plus 0.5 s; a document opens within
-  0.5 s.
+- **Performance:** on Héraklios (~60 intents) `/api/queue` answers within
+  the time `npm run queue` takes there plus 0.5 s, and `/api/intent/<id>`
+  within the time one `node scripts/queue.mjs --json` run takes there plus
+  0.5 s, since it checks the id against the current queue (B8) with no
+  cache (B5). A page load that opens an intent from its hash may run the
+  queue twice. Faster document opening is a later intent. *(Amended
+  2026-11-25 on review round 1, HIGH-1: the owner chose option (c),
+  "relax the spec's performance line"; the earlier line said "a document
+  opens within 0.5 s".)*
 
 ## Out of scope
 
