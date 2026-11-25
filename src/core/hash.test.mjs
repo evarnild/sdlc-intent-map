@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildHash, DOCS, parseHash } from './hash.mjs';
+import { buildHash, DOCS, parseHash, pickDoc } from './hash.mjs';
 
 describe('parseHash (AC9, B20)', () => {
   it('parses an intent alone', () => assert.deepEqual(parseHash('#i-87'), { id: 87, doc: null }));
@@ -18,4 +18,19 @@ describe('buildHash', () => {
     for (const d of DOCS) assert.deepEqual(parseHash(buildHash(5, d)), { id: 5, doc: d });
   });
   it('omits an unknown document', () => assert.equal(buildHash(5, 'nope'), '#i-5'));
+});
+
+describe('pickDoc (B20)', () => {
+  const docs = { intent: 'i', spec: null, plan: 'p', review: null, konmari: null };
+  it('keeps a wanted document that exists', () => assert.equal(pickDoc(docs, 'plan'), 'plan'));
+  it('falls back to the first existing one when the wanted one is missing', () => assert.equal(pickDoc(docs, 'spec'), 'intent'));
+  it('falls back to the first existing one when nothing is wanted', () => assert.equal(pickDoc(docs, null), 'intent'));
+  it('falls back past a missing first document', () => assert.equal(pickDoc({ ...docs, intent: null }, null), 'plan'));
+  it('is null for an intent with no documents', () => {
+    const none = { intent: null, spec: null, plan: null, review: null, konmari: null };
+    assert.equal(pickDoc(none, 'plan'), null);
+    assert.equal(pickDoc(none, null), null);
+    assert.equal(pickDoc({}, 'plan'), null);
+  });
+  it('ignores a wanted name that is not a document', () => assert.equal(pickDoc(docs, 'bogus'), 'intent'));
 });

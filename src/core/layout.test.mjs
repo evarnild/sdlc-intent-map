@@ -101,6 +101,9 @@ describe('arrows (B13, I5, AC8)', () => {
     assert.deepEqual([a.x1, a.y1], [src.x + src.w, src.y + src.h / 2]);
     assert.deepEqual([a.x2, a.y2], [dst.x, dst.y + dst.h / 2]);
     assert.match(a.d, /^M /);
+    // the path the page draws starts on the source and ends on the target
+    assert.ok(a.d.startsWith(`M ${a.x1} ${a.y1} `), a.d);
+    assert.ok(a.d.endsWith(` ${a.x2} ${a.y2}`), a.d);
   });
   it('a blocker in a later column ends on the source left edge and target right edge', () => {
     const q = queue({
@@ -120,6 +123,10 @@ describe('arrows (B13, I5, AC8)', () => {
     const up = layoutBoard(queue({ queued: [mk(1, 'draft', { blocked_by: [{ id: 2, reason: 'r' }], blocked_by_open: [2] }), mk(2, 'draft')] }));
     assert.equal(up.arrows[0].y1, counter(up, 2).y);
     assert.equal(up.arrows[0].y2, counter(up, 1).y + GEOMETRY.counterH);
+    for (const a of [down.arrows[0], up.arrows[0]]) {
+      assert.ok(a.d.startsWith(`M ${a.x1} ${a.y1} `), a.d);
+      assert.ok(a.d.endsWith(` ${a.x2} ${a.y2}`), a.d);
+    }
   });
   it('no arrow for a merged blocker (not open)', () => {
     const q = queue({ inFlight: [mk(4, 'accepted', { blocked_by: [{ id: 3, reason: 'r' }], blocked_by_open: [] })], shipped: [mk(3, 'done')] });

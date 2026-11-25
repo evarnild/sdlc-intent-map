@@ -3,7 +3,7 @@
 // hash and ref rules are src/core. Every URL here is same-origin (B22).
 import { marked } from '/vendor/marked.js';
 import DOMPurify from '/vendor/purify.js';
-import { buildHash, DOCS, parseHash } from '/core/hash.mjs';
+import { buildHash, DOCS, parseHash, pickDoc } from '/core/hash.mjs';
 import { layoutBoard, pickerGroups } from '/core/layout.mjs';
 import { renderMarkdown } from '/web/render.mjs';
 
@@ -189,8 +189,7 @@ async function openIntent(id, doc) {
     missing.textContent = status === 404 ? `No intent §${id} in this repo` : `Could not read §${id}: ${body?.error ?? `HTTP ${status}`}`;
     return;
   }
-  const wanted = doc && body.documents[doc] !== null ? doc : DOCS.find((d) => body.documents[d] !== null) ?? null;
-  drawReader(body, wanted);
+  drawReader(body, pickDoc(body.documents, doc));
 }
 
 function openFromHash() {

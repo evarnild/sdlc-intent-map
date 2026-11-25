@@ -22,3 +22,13 @@ export function parseHash(hash) {
 export function buildHash(id, doc) {
   return DOCS.includes(doc) ? `#i-${Number(id)}-${doc}` : `#i-${Number(id)}`;
 }
+
+/**
+ * B20: the document the reader opens. `wanted` when the intent has it, else the
+ * first existing one in tab order, else null. `documents` maps name -> text or null.
+ */
+export function pickDoc(documents, wanted) {
+  const has = (d) => typeof documents?.[d] === 'string';
+  if (wanted && DOCS.includes(wanted) && has(wanted)) return wanted;
+  return DOCS.find(has) ?? null;
+}

@@ -167,6 +167,24 @@ describe('checkChange', () => {
   });
 });
 
+describe('CORE_CODE is src/core only', () => {
+  const feat = (path) =>
+    checkChange(
+      base({
+        branch: 'feat/27-x',
+        metadata: meta({ type: 'feature', spec_accepted: '2026-10-07' }),
+        intentFiles: ['intent.md', 'spec.md', 'plan.md', 'metadata.yml'],
+        diff: [{ path, added: 30, deleted: 2 }],
+      }),
+    );
+  it('an untested change to src/core routes as core code', () => {
+    expect(feat('src/core/x.mjs').routes.join()).toMatch(/Core code .* no test change/);
+  });
+  it('an untested change to src/server or src/web does not', () => {
+    for (const p of ['src/server/x.mjs', 'src/web/x.mjs']) expect(feat(p).routes.join(), p).not.toMatch(/Core code/);
+  });
+});
+
 describe('parseMetadata edge cases', () => {
   it('keeps a # inside a quoted value and treats [] as an empty list', () => {
     const m = parseMetadata(['title: "Fix #12 overlap"  # trailing comment', "note: 'a # b'", 'links: []', 'tag: a#b'].join('\n'));

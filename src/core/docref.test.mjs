@@ -22,5 +22,6 @@ describe('chooseFolder (B7)', () => {
   it('matches the id prefix exactly, not 10- for 1', () => {
     assert.equal(chooseFolder(1, ['10-other', '1-first', '11-x']), '1-first');
   });
+  it('is null when only longer ids share the digits', () => assert.equal(chooseFolder(1, ['10-other', '11-x']), null));
   it('is null when absent', () => assert.equal(chooseFolder(2, ['1-a']), null));
 });
