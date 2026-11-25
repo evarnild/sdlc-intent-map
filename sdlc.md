@@ -109,6 +109,12 @@ Merging goes in this order:
 4. push, if the repository has a remote;
 5. `npm run spawn -- <id> --remove`, if you used a worktree.
 
+Step 2 runs in the main checkout, which only a spawned worktree gets
+dependencies installed in. When the project has dependencies and `main` has no
+`node_modules` (or the merge adds dependencies), run `npm run setup:worktree`
+there first, or `verify` fails after the merge is already done. A dry-run does
+not catch it.
+
 You can ask Claude to do the merge, the push or the removal, each only when
 you ask for it, for that change, in the current conversation. `/deliver <id>`
 does all of it in order and stops at the first step that fails
